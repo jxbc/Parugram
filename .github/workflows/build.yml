@@ -1,0 +1,104 @@
+name: Build Parugram
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  RUSTUP_TOOLCHAIN: stable
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  linux-arm64:
+    runs-on: ubuntu-24.04-arm
+    env:
+      RUST_TARGET: aarch64-unknown-linux-gnu
+      BUILD_DIR: src-tauri/target/aarch64-unknown-linux-gnu/release
+
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '24'
+          cache: npm
+
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential pkg-config curl wget file jq patchelf \
+            libwebkit2gtk-4.1-dev libxdo-dev libssl-dev libayatana-appindicator3-dev \
+            librsvg2-dev libc++1-18
+          rustup toolchain install stable --profile minimal --target "$RUST_TARGET"
+
+      - name: Build Parugram
+        run: |
+          npm ci
+          npm run tauri build -- --target "$RUST_TARGET" --no-bundle \
+            --config '{"bundle":{"resources":null}}' -- --locked
+
+      - name: Package and verify the ARM64 deb
+        run: |
+          binary="$BUILD_DIR/parugram"
+          tdlib_name=$(patchelf --print-needed "$binary" | awk '/^libtdjson\.so($|\.)/')
+          test -n "$tdlib_name"
+          tdlib_path=$(find "$PWD/$BUILD_DIR/build" -path "*/out/tdlib/lib/$tdlib_name" -print -quit)
+          test -f "$tdlib_path"
+
+          patchelf --set-rpath '$ORIGIN/../lib/parugram' "$binary"
+          config=$(jq -cn --arg source "$tdlib_path" --arg destination "/usr/lib/parugram/$tdlib_name" \
+            '{bundle: {resources: null, linux: {deb: {
+              depends: ["libc++1-18", "libssl3t64", "zlib1g"], files: {($destination): $source}
+            }}}}')
+          npm run tauri bundle -- --target "$RUST_TARGET" --bundles deb --config "$config"
+
+          packages=("$BUILD_DIR"/bundle/deb/*.deb)
+          test "$(dpkg-deb --field "${packages[0]}" Architecture)" = arm64
+          extracted=$(mktemp -d)
+          dpkg-deb --extract "${packages[0]}" "$extracted"
+          test -f "$extracted/usr/lib/parugram/$tdlib_name"
+          dependencies=$(ldd "$extracted/usr/bin/parugram")
+          printf '%s\n' "$dependencies"
+          [[ "$dependencies" != *'not found'* ]]
+
+      - name: Upload the ARM64 deb
+        uses: actions/upload-artifact@v7
+        with:
+          name: Parugram-Linux-ARM64
+          path: ${{ env.BUILD_DIR }}/bundle/deb/*.deb
+          if-no-files-found: error
+
+  windows-x64:
+    runs-on: windows-2025
+
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '24'
+          cache: npm
+
+      - name: Build the Windows installer
+        run: |
+          rustup toolchain install stable --profile minimal
+          npm ci
+          npm run tauri build -- --bundles nsis -- --locked
+
+      - name: Upload the Windows installer
+        uses: actions/upload-artifact@v7
+        with:
+          name: Parugram-Windows-x64
+          path: src-tauri/target/release/bundle/nsis/*-setup.exe
+          if-no-files-found: error
