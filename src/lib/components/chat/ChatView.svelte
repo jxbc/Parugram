@@ -23,7 +23,11 @@
   const actionsOpen = $derived(actionsChatId !== undefined && actionsChatId === chatId)
   let headerHeight = $state(52)
   let composerHeight = $state(59)
-  let windowWidth = $state(0)
+  let profileTrigger: HTMLButtonElement | undefined = $state()
+  let profileHidden = $state(false)
+  const panelsLayout = $derived(store.customization.layout === "panels")
+  const embeddedProfile = $derived(store.chatWindowId === null && !secondary && !store.rightPanel && !!chat
+    && store.viewportWidth >= (panelsLayout ? 1160 : 1360))
   let details = $state<ProfileData | null>(null)
   let detailsLoading = $state(false)
   let detailsError = $state("")
@@ -53,7 +57,12 @@
   const pinned = $derived(pins[pinIndex] ? replyPreview(pins[pinIndex].chat_id, pins[pinIndex].id) ?? pins[pinIndex] : null)
   const plurals = new Intl.PluralRules("ru")
   const count = $derived(chatId ? store.onlineCounts.get(chatId) : undefined)
-  const activity = $derived(chatActivityText(chatId ? store.chatActivity.get(chatId) ?? [] : [], chat?.is_group ?? false))
+  const activityItems = $derived(chatId ? store.chatActivity.get(chatId) ?? [] : [])
+  const activity = $derived(chatActivityText(activityItems, chat?.is_group ?? false))
+  const activityKind = $derived.by(() => {
+    const visible = activityItems.slice(0, chat?.is_group ? 2 : 1)
+    return visible.find(({ action }) => action === "recording_voice" || action === "recording_video_note")?.action ?? visible[0]?.action
+  })
   const status = $derived(chat?.is_group
     ? details ? `${details.member_count.toLocaleString("ru")} ${plurals.select(details.member_count) === "one" ? "участник" : plurals.select(details.member_count) === "few" ? "участника" : "участников"} (${count || "…"} в сети)` : "Загрузка..."
     : details?.status === "канал" ? `${details.member_count.toLocaleString("ru")} подписчиков` : details?.status ?? "")
@@ -116,6 +125,7 @@
   $effect(() => {
     const id = chatId
     let disposed = false
+    profileHidden = false
     details = null
     detailsError = ""
     onlineOpen = false
@@ -247,9 +257,14 @@
       if (request === onlineRequest && chatId === id) onlineLoading = false
     }
   }
+
+  function toggleChatProfile(id: number) {
+    if (panelsLayout && embeddedProfile) profileHidden = !profileHidden
+    else void openProfile({ kind: "chat", id })
+  }
 </script>
 
-<svelte:window bind:innerWidth={windowWidth} onpointerdown={headerOutside} onkeydown={headerKeys} />
+<svelte:window onpointerdown={headerOutside} onkeydown={headerKeys} />
 
 <main class="chat-view" class:main-view={!secondary} data-conversation-key={viewKey}>
   {#if chat}
@@ -263,7 +278,15 @@
       <div class="chat-title">
         <button class="name" onclick={() => openProfile({ kind: "chat", id: chat.id })}>{conversation?.title || chat.title || "Без названия"}</button>
         <div class="presence-control" role="group" aria-label="Участники в сети" onpointerenter={() => void showOnline()} onpointerleave={() => onlineOpen = false} onfocusout={(event) => { if (!(event.relatedTarget instanceof Node) || !event.currentTarget.contains(event.relatedTarget)) onlineOpen = false }}>
-          <button class="status" class:has-activity={!!activity} aria-expanded={chat.is_group ? onlineOpen : undefined} onclick={() => chat.is_group ? void showOnline() : void openProfile({ kind: "chat", id: chat.id })} onfocus={() => void showOnline()}>{#if activity}<span class="activity-dots" aria-hidden="true"><i></i><i></i><i></i></span>{activity}{:else}{status}{/if}</button>
+          <button class="status" class:has-activity={!!activity} class:typing={activityItems[0]?.action === "typing"} aria-expanded={chat.is_group ? onlineOpen : undefined} onclick={() => chat.is_group ? void showOnline() : void openProfile({ kind: "chat", id: chat.id })} onfocus={() => void showOnline()}>
+            {#if activity}
+              {#if activityKind === "recording_video_note"}
+                <span class="activity-indicator activity-circle" aria-hidden="true"><i></i></span>
+              {:else}
+                <span class="activity-indicator" class:activity-wave={activityKind === "recording_voice"} class:activity-dots={activityKind !== "recording_voice"} aria-hidden="true"><i></i><i></i><i></i></span>
+              {/if}{activity}
+            {:else}{status}{/if}
+          </button>
           {#if onlineOpen && chat.is_group}
             <div class="online-dropdown glass">
               {#if onlineLoading}<span class="presence-empty">Загрузка...</span>
@@ -273,7 +296,7 @@
           {/if}
         </div>
       </div>
-      <button class="icon-button header-open" aria-label="Информация о чате" onclick={() => openProfile({ kind: "chat", id: chat.id })}><Icon name="nav-arrow-right" size={17} /></button>
+      <button class="icon-button header-open" bind:this={profileTrigger} aria-label="Информация о чате" aria-expanded={panelsLayout && embeddedProfile ? !profileHidden : undefined} onclick={() => toggleChatProfile(chat.id)}><Icon name="nav-arrow-right" size={17} /></button>
       {#if secondary}<button class="icon-button" aria-label="Закрыть правый чат" onclick={closeRightPanel}><Icon name="xmark" size={20} /></button>{:else}
       <div class="search-control" bind:this={searchControl}>
         <button class="icon-button" class:search-active={searchOpen} aria-label={searchOpen ? "Закрыть поиск" : "Поиск по сообщениям"} aria-expanded={searchOpen} aria-controls="chat-message-search" onclick={toggleSearch}><Icon name={searchOpen ? "xmark" : "search"} size={20} /></button>
@@ -350,7 +373,12 @@
   {/if}
 </main>
 
-{#if store.chatWindowId === null && !secondary && !store.rightPanel && chat && windowWidth >= 1360}<ProfilePanel embedded {details} {detailsLoading} {detailsError} />{/if}
+{#if embeddedProfile && (!panelsLayout || !profileHidden)}
+  <ProfilePanel embedded compact={panelsLayout} {details} {detailsLoading} {detailsError} onclose={panelsLayout ? () => {
+    profileHidden = true
+    profileTrigger?.focus()
+  } : undefined} />
+{/if}
 
 <style>
   .chat-header { grid-area: 1 / 1; z-index: 2; display: flex; flex-direction: column; gap: 6px; min-width: 0 }
@@ -388,7 +416,7 @@
   .actions-trigger { position: relative; isolation: isolate; width: 44px; height: 44px }
   .actions-trigger .header-surface { inset: 2px }
   .actions-trigger:hover, .actions-trigger.search-active { background: transparent; color: var(--text-primary) }
-  .chat-actions { position: absolute; top: calc(100% + 9px); right: 0; z-index: 6; width: max-content; max-width: calc(100vw - 40px); padding: 5px; border-radius: 14px; background: var(--menu-bg); animation: appear .16s ease-out }
+  .chat-actions { position: absolute; top: calc(100% + 9px); right: 0; z-index: 6; width: max-content; max-width: calc(100vw - 40px); padding: 5px 5px; border-radius: 9px; background: var(--menu-bg); animation: appear .16s ease-out }
   .chat-actions button { display: flex; align-items: center; gap: 8px; width: 100%; padding: 8px; border-radius: 9px; text-align: left; font-size: 13px }
   .chat-actions button:hover { background: var(--hover) }
   .chat-actions span[role="status"] { display: block; padding: 3px 8px; color: var(--danger); font-size: 11px }
@@ -424,13 +452,13 @@
   .chat-title { min-width: 0; flex: 1 }
   .header-open { margin-left: auto }
   @container (max-width: 480px) {
-    .header { gap: 6px; padding-inline: 8px }
+    .header { gap: 6px }
     .header-open { display: none }
     .online-dropdown { left: auto; right: 0; width: min(260px, 76cqw) }
   }
   .presence-control { position: relative; width: fit-content; max-width: 100% }
   .presence-control::after { content: ""; position: absolute; top: 100%; left: 0; right: 0; height: 12px }
-  .online-dropdown { position: absolute; top: calc(100% + 9px); left: -10px; z-index: 5; width: 260px; max-height: 310px; overflow-y: auto; padding: 6px; border-radius: 17px; background: var(--menu-bg); animation: appear .16s ease-out }
+  .online-dropdown { position: absolute; top: calc(100% + 9px); left: -10px; z-index: 5; width: 260px; max-height: 310px; overflow-y: auto; padding: 5px 5px; border-radius: 9px; background: var(--menu-bg); animation: appear .16s ease-out }
   .online-dropdown button { display: flex; align-items: center; gap: 9px; width: 100%; padding: 7px; border-radius: 12px; text-align: left; font-size: 13px }
   .online-dropdown button:hover { background: var(--hover) }
   .presence-empty { display: block; padding: 10px; font-size: 12px; color: var(--text-secondary) }
@@ -453,14 +481,23 @@
     padding: 0;
     font-size: 11px;
     color: var(--text-secondary);
-    margin-top: 3px;
+    margin-top: 1px;
   }
-  .status.has-activity { color: var(--accent-hover) }
-  .activity-dots { display: inline-flex; align-items: center; gap: 2px; height: 9px; margin-right: 6px; vertical-align: middle }
+  .status.has-activity { color: color-mix(in srgb, var(--accent-hover) 55%, #47d4ff) }
+  .status.typing { font-weight: 600 }
+  .activity-indicator { display: inline-flex; align-items: center; justify-content: center; gap: 2px; width: 13px; height: 10px; margin-right: 6px; vertical-align: middle }
   .activity-dots i { width: 3px; height: 3px; border-radius: 50%; background: currentColor; animation: activity-bounce .8s ease-in-out infinite alternate }
   .activity-dots i:nth-child(2) { animation-delay: .16s }
   .activity-dots i:nth-child(3) { animation-delay: .32s }
+  .activity-wave i { width: 2px; height: 6px; border-radius: 2px; background: currentColor; animation: activity-level .48s ease-in-out infinite alternate }
+  .activity-wave i:nth-child(2) { height: 10px; animation-delay: -.2s }
+  .activity-wave i:nth-child(3) { animation-delay: -.32s }
+  .activity-circle i { display: grid; place-items: center; width: 10px; height: 10px; border: 1px solid currentColor; border-radius: 50% }
+  .activity-circle i::after { content: ""; width: 4px; height: 4px; border-radius: 50%; background: currentColor; animation: activity-pulse .75s ease-in-out infinite alternate }
   @keyframes activity-bounce { to { transform: translateY(-3px); opacity: .4 } }
+  @keyframes activity-level { from { transform: scaleY(.4) } }
+  @keyframes activity-pulse { to { transform: scale(.5); opacity: .5 } }
+  @media (prefers-reduced-motion: reduce) { .activity-indicator i, .activity-circle i::after { animation: none } }
   .placeholder {
     grid-area: 1 / 1 / -1 / 2;
     flex: 1;

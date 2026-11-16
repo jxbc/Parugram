@@ -22,7 +22,7 @@ export const themePresets = [
 ]
 
 export const interfaceFontGroups = [
-  { label: "Встроенные", fonts: ["Inter", "Geist Sans", "Onest", "Fixel Display", "Geist Mono"] },
+  { label: "Встроенные", fonts: ["Inter", "Geist Sans", "Onest", "Fixel Display", "Open Sans", "Geist Mono"] },
   { label: "Системные", fonts: ["Segoe UI", "Arial", "Georgia", "Consolas", "Courier New"] },
 ]
 
@@ -64,8 +64,8 @@ export const store = $state({
   stickersRevision: 0,
   customization: {
     theme: "default", accent: "#347fff", background: "#090d15", wallpaper: null as string | null,
-    fontFamily: "Geist Sans",
-    fontSize: 14, bubbleRadius: 17, panelOpacity: 78, wallpaperOpacity: 80, softEdges: true, bubbleBlur: true, dynamicGlow: true,
+    fontFamily: "Open Sans", layout: "classic" as "classic" | "panels",
+    fontSize: 13, bubbleRadius: 19, panelOpacity: 78, wallpaperOpacity: 80, softEdges: true, bubbleBlur: true, dynamicGlow: true,
   },
   replyPreviews: new SvelteMap<string, MsgData | null>(),
   reactionStickers: new SvelteMap<string, { file_id: number | null; emoji: string }>(),
@@ -513,6 +513,7 @@ export function normalizeCustomization(value: unknown): typeof store.customizati
     accent: color("accent"), background: color("background"),
     wallpaper: typeof data.wallpaper === "string" && data.wallpaper.length < 4096 && /^(?:[a-z]:[\\/]|\/)/i.test(data.wallpaper) ? data.wallpaper : null,
     fontFamily: data.fontFamily === "Verdana" ? "Geist Sans" : interfaceFonts.find((font) => font === data.fontFamily) ?? defaultCustomization.fontFamily,
+    layout: data.layout === "panels" ? "panels" : defaultCustomization.layout,
     fontSize: range("fontSize", 12, 20), bubbleRadius: range("bubbleRadius", 8, 28),
     panelOpacity: range("panelOpacity", 50, 100), wallpaperOpacity: range("wallpaperOpacity", 0, 100),
     softEdges: typeof data.softEdges === "boolean" ? data.softEdges : true,
@@ -575,7 +576,7 @@ export function customizationStyles(wallpaperUrl: string | null = null) {
   return Object.entries({
     "--bg-main": background, "--bg-sidebar": surface, "--bg-input": rgbaColor(light ? "#ffffff" : "#080b10", .5),
     "--surface": rgbaColor(surface, opacity), "--menu-bg": rgbaColor(menu, Math.min(1, opacity + .06)),
-    "--accent": accent, "--accent-hover": telegram ? "#90caff" : settings.theme === "next" ? "#8dcfff" : settings.theme === "default" ? "#69a5ff" : mixColor(accent, light ? "#000000" : "#ffffff", .22),
+    "--accent": accent,
     "--accent-soft": settings.theme === "next" ? "rgba(36,107,170,.28)" : rgbaColor(accent, .24), "--hover": rgbaColor(accent, .1), "--border": rgbaColor(light ? "#253b5c" : "#7daeff", .14),
     "--folder-active": settings.theme === "next" ? "#173f66" : accent, "--folder-active-text": settings.theme === "next" ? "#a3d9ff" : lightColor(accent) ? "#101b2e" : "#ffffff",
     "--text-primary": text, "--text-secondary": settings.theme === "next" ? "#a0a5af" : secondary, "--text-tertiary": settings.theme === "next" ? "#737b88" : light ? "#66778d" : "#697f9f", "--text-on-accent": lightColor(accent) ? "#101b2e" : "#ffffff",

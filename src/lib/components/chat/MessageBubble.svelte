@@ -444,9 +444,9 @@
   .bubble {
     display: flow-root;
     background: var(--bubble-in);
-    border-radius: var(--bubble-radius, 17px);
+    border-radius: var(--bubble-radius, 19px);
     padding: 8px 12px 7px;
-    font-size: var(--message-font-size, 14px);
+    font-size: var(--message-font-size, 13px);
     line-height: 1.3;
     position: relative;
     min-width: 64px;
@@ -457,7 +457,7 @@
   .grouped-before { margin-top: 1px }
   .grouped-before .bubble { border-top-left-radius: 5px }
   .grouped-after .bubble { border-bottom-left-radius: 5px }
-  .out.grouped-before .bubble { border-top-left-radius: var(--bubble-radius, 17px); border-top-right-radius: 5px }
+  .out.grouped-before .bubble { border-top-left-radius: var(--bubble-radius, 19px); border-top-right-radius: 5px }
   .out.grouped-after .bubble { border-bottom-left-radius: var(--bubble-radius, 17px); border-bottom-right-radius: 5px }
   .message-more { position: absolute; right: -33px; top: 2px; width: 27px; height: 27px; opacity: 0; background: var(--menu-bg); color: var(--accent-hover); transition: opacity .15s }
   .out .message-more { right: auto; left: -33px }
@@ -508,8 +508,8 @@
     display: inline;
     white-space: pre-wrap;
     line-height: 1.3;
-    font-size: var(--message-font-size, 14px);
-    font-weight: 300;
+    font-size: var(--message-font-size, 13px);
+    font-weight: 333;
     user-select: text;
   }
   .media-open { position: relative; display: grid; place-items: center; width: 100%; aspect-ratio: var(--media-ratio); max-height: min(44vh, 380px); overflow: hidden; padding: 0; border-radius: inherit; background: #101725 }

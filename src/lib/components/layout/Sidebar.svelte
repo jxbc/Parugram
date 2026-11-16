@@ -7,12 +7,13 @@
   import { convertFileSrc } from "@tauri-apps/api/core"
   import Avatar from "$lib/components/Avatar.svelte"
   import SecretInput from "$lib/components/auth/SecretInput.svelte"
-  import { store, api, loadMoreChats, selectFolder, openProfile, openPrivateChat, setEffects, openChatMenu, activateChat, setPrivacyMode, applyAppLockStatus, setSaveDeleted, setSkipRead, setChatPrivacy, setNotificationPreference, themePresets, interfaceFontGroups, updateCustomization, resetCustomization, setRecentStickerLimit, canSplitView, openSplitChat, compactChats, messageSender, chatMuted } from "$lib/stores/app.svelte"
+  import { store, api, loadMoreChats, selectFolder, openProfile, openPrivateChat, setEffects, openChatMenu, activateChat, setPrivacyMode, applyAppLockStatus, setSaveDeleted, setSkipRead, setChatPrivacy, setNotificationPreference, themePresets, interfaceFontGroups, updateCustomization, resetCustomization, setRecentStickerLimit, canSplitView, openSplitChat, compactChats, compactView, messageSender, chatMuted } from "$lib/stores/app.svelte"
   import type { ChatPrivacy, ChatSummary, DownloadSettings, NotificationPreferences } from "$lib/api/td"
   import { formatTime, messagePreview, horizontalWheel, rangeSlider } from "$lib/utils"
 
   let search = $state("")
   let list: HTMLDivElement | undefined = $state()
+  let previousListScrollTop = 0
   let menu: HTMLDivElement | undefined = $state()
   let menuOpen = $state(false)
   let settingsOpen = $state(false)
@@ -66,6 +67,7 @@
     { key: "hide_typing", label: "Скрывать статус набора текста" },
   ]
   const settingsTitles = { appearance: "Кастомизация", chats: "Чаты", notifications: "Уведомления", security: "Безопасность", downloads: "Загрузки" }
+  const settingsAvatarSize = 52
   let settingsCategory = $state<keyof typeof settingsTitles | null>(null)
   let downloads = $state<DownloadSettings | null>(null)
   let downloadsBusy = $state(false)
@@ -161,6 +163,12 @@
     && (lockForm === "disable" || (lockForm === "pin" ? /^\d{4}$/.test(newSecret) : [...newSecret].length >= 4) && newSecret === confirmSecret))
   const filtered = $derived(store.chats.filter((chat) => chat.title.toLowerCase().includes(search.trim().toLowerCase())))
   const userTitle = $derived(store.user ? `${store.user.first_name} ${store.user.last_name}`.trim() : "Parugram")
+  const flatSidebar = $derived(store.customization.layout === "panels")
+  const folderRail = $derived(flatSidebar && !compactView())
+  $effect(() => {
+    void folderRail
+    previousListScrollTop = list?.scrollTop ?? 0
+  })
   const [pillOut, pillIn] = crossfade({ duration: 180 })
 
   $effect(() => {
@@ -210,8 +218,12 @@
 
   function loadNearBottom() {
     scheduleCompact()
-    if (!list || !store.chatsReady || search.trim() || store.chatsError || store.loadingChats) return
-    if (list.scrollTop > 0 && list.scrollHeight - list.scrollTop - list.clientHeight < 160) void loadMoreChats()
+    if (!list) return
+    const scrollTop = list.scrollTop
+    const scrollingDown = scrollTop > previousListScrollTop
+    previousListScrollTop = scrollTop
+    if (!scrollingDown || !store.chatsReady || search.trim() || store.chatsError || store.loadingChats) return
+    if (list.scrollHeight - scrollTop - list.clientHeight < 160) void loadMoreChats()
   }
 
   function leaveMenu() {
@@ -245,12 +257,12 @@
 </script>
 
 <svelte:window onkeydown={(event) => { if (event.key === "Escape") menuOpen = false }} />
-<aside class="sidebar">
-  <div class="sidebar-surface glass" aria-hidden="true"></div>
+<aside class="sidebar" class:folder-rail={folderRail} class:flat-sidebar={flatSidebar}>
+  {#if !flatSidebar}<div class="sidebar-surface glass" aria-hidden="true"></div>{/if}
   <div class="sidebar-top">
     <div class="profile-control" role="group" aria-label="Аккаунт" bind:this={menu} onpointerenter={() => menuOpen = true} onpointerleave={leaveMenu} onfocusout={blurMenu}>
       <button class="profile-trigger" aria-expanded={menuOpen} aria-haspopup="true" onclick={() => menuOpen = true} disabled={store.stage !== "ready"}>
-        <Avatar id={store.user?.id ?? 0} title={userTitle} fileId={store.user?.photo_file_id} path={store.user?.photo} size={42} />
+        <Avatar id={store.user?.id ?? 0} title={userTitle} fileId={store.user?.photo_file_id} path={store.user?.photo} size={folderRail ? 32 : 42} />
         <span class="profile-text"><strong>{userTitle}</strong><span class="connection">Parugram</span></span>
         <Icon name="nav-arrow-down" size={16} strokeWidth={1.5} />
       </button>
@@ -267,16 +279,17 @@
       </div>
     </div>
     <label class="search"><Icon name="search" size={17} strokeWidth={1.5} /><input placeholder="Поиск" aria-label="Поиск чатов" bind:value={search} disabled={!store.chatsReady} /></label>
-    <nav class="folders" aria-label="Папки" use:horizontalWheel>
-      {#each store.folders as folder (folder.id)}
-        {@const unread = folder.unread_count ?? 0}
-        <button class:active={store.selectedFolder === folder.id} aria-pressed={store.selectedFolder === folder.id} aria-label={unread > 0 ? `${folder.title}, непрочитанных чатов ${unread}` : undefined} disabled={store.stage !== "ready"} onclick={() => changeFolder(folder.id)}>
-          {#if store.selectedFolder === folder.id}<span class="pill-active" in:pillIn={{ key: "folder", duration: store.effects === "full" ? 180 : 0 }} out:pillOut={{ key: "folder", duration: store.effects === "full" ? 180 : 0 }}></span>{/if}
-          {folder.title}{#if unread > 0}<span class="folder-count">{unread}</span>{/if}
-        </button>
-      {/each}
-    </nav>
   </div>
+  <nav class="folders" aria-label="Папки" use:horizontalWheel>
+    {#each store.folders as folder (folder.id)}
+      {@const unread = folder.unread_count ?? 0}
+      <button class:active={store.selectedFolder === folder.id} aria-pressed={store.selectedFolder === folder.id} aria-label={unread > 0 ? `${folder.title}, непрочитанных чатов ${unread}` : undefined} title={folderRail ? folder.title : undefined} disabled={store.stage !== "ready"} onclick={() => changeFolder(folder.id)}>
+        {#if store.selectedFolder === folder.id}<span class="pill-active" in:pillIn={{ key: "folder", duration: store.effects === "full" ? 180 : 0 }} out:pillOut={{ key: "folder", duration: store.effects === "full" ? 180 : 0 }}></span>{/if}
+        {#if folderRail}<Icon name={folder.id === 0 ? "chat-bubble" : folder.id === -1 ? "archive" : "folder"} size={19} />{/if}
+        <span class="folder-label">{folder.title}</span>{#if unread > 0}<span class="folder-count">{unread}</span>{/if}
+      </button>
+    {/each}
+  </nav>
   <div class="list" class:stale={!store.chatsReady} aria-busy={!store.chatsReady} bind:this={list} onscroll={loadNearBottom}>
     {#each filtered as chat, index (chat.id)}
       {@const author = previewAuthor(chat)}
@@ -295,7 +308,7 @@
         openChatMenu(chat, event.clientX, event.clientY)
       }} disabled={!store.chatsReady}>
         <span class="chat-avatar">
-          <Avatar id={chat.id} title={chat.title} fileId={chat.photo_file_id} path={chat.photo} size={48} />
+          <Avatar id={chat.id} title={chat.title} fileId={chat.photo_file_id} path={chat.photo} size={folderRail ? 36 : 48} />
           {#if muted}<span class="mute-icon" role="img" aria-label="Уведомления выключены" title="Уведомления выключены"><Icon name="bell-off" size={11} strokeWidth={1.8} /></span>{/if}
         </span>
         <span class="chat-info">
@@ -332,6 +345,12 @@
     {#if store.chatsError}<div class="inline-error" role="alert">{store.chatsError}</div><button class="load-more" onclick={loadMoreChats} disabled={store.loadingChats}>Повторить</button>
     {:else if store.chatsReady && store.hasMoreChats && !search}<button class="load-more" onclick={loadMoreChats} disabled={store.loadingChats}>{store.loadingChats ? "Загрузка..." : "Ещё чаты"}</button>{/if}
   </div>
+  {#if folderRail}
+    <button class="rail-settings" onclick={() => {
+      menuOpen = false
+      settingsOpen = true
+    }}><Icon name="settings" size={19} />Настройки</button>
+  {/if}
 </aside>
 
 <dialog class="settings-dialog glass" aria-label="Настройки" bind:this={settingsDialog} oncancel={() => settingsOpen = false} onclose={() => settingsOpen = false}>
@@ -340,8 +359,8 @@
   {#key settingsCategory}
   <div class="settings-page" in:fly={{ x: settingsDirection * 28, duration: store.effects === "full" ? 180 : 0 }} out:fly={{ x: settingsDirection * -28, duration: store.effects === "full" ? 140 : 0 }}>
   {#if !settingsCategory}
-  <div class="settings-account"><Avatar id={store.user?.id ?? 0} title={userTitle} fileId={store.user?.photo_file_id} path={store.user?.photo} size={52} /><span><strong>{userTitle}</strong><span>Parugram</span></span></div>
-  <nav class="settings-categories" aria-label="Категории настроек">
+  <div class="settings-account"><Avatar id={store.user?.id ?? 0} title={userTitle} fileId={store.user?.photo_file_id} path={store.user?.photo} size={settingsAvatarSize} /><span><strong>{userTitle}</strong><span>Parugram</span></span></div>
+  <nav class="settings-categories" aria-label="Категории настроек" style:--settings-avatar-size={`${settingsAvatarSize}px`}>
     <button onclick={() => chooseCategory("appearance")}><Icon name="sparks" size={20} /><span>Кастомизация</span><Icon name="nav-arrow-right" size={17} /></button>
     <button onclick={() => chooseCategory("chats")}><Icon name="chat-bubble" size={20} /><span>Чаты</span><Icon name="nav-arrow-right" size={17} /></button>
     <button onclick={() => chooseCategory("notifications")}><Icon name="bell" size={20} /><span>Уведомления</span><Icon name="nav-arrow-right" size={17} /></button>
@@ -349,6 +368,10 @@
     <button onclick={() => chooseCategory("security")}><Icon name="shield-check" size={20} /><span>Безопасность</span><Icon name="nav-arrow-right" size={17} /></button>
   </nav>
   {:else if settingsCategory === "appearance"}
+  <label class="settings-row"><span>Схема интерфейса</span><select class="drive-select layout-select" value={store.customization.layout} onchange={(event) => updateCustomization({ layout: event.currentTarget.value === "panels" ? "panels" : "classic" })}>
+    <option value="classic">Классическая</option>
+    <option value="panels">Боковые панели</option>
+  </select></label>
   <h3>Темы</h3>
   <div class="theme-grid" role="group" aria-label="Темы">
     {#each themePresets as theme (theme.id)}
@@ -441,14 +464,14 @@
 <style>
   .sidebar { width: 310px; min-width: 260px; flex-shrink: 0; display: flex; flex-direction: column; border: 1px solid transparent; border-radius: 26px; min-height: 0; position: relative; z-index: 3 }
   .sidebar-surface { position: absolute; inset: -1px; z-index: -1; border-radius: inherit; pointer-events: none }
-  .sidebar-top { padding: 18px 14px 10px }
+  .sidebar-top { padding: 18px 14px 0 }
   .profile-control { position: relative; margin-bottom: 20px }
   .profile-trigger { display: flex; width: 100%; align-items: center; gap: 12px; text-align: left; padding: 2px 4px }
   .profile-trigger > :global(.icon) { color: var(--text-secondary); margin-left: auto }
   .profile-text { min-width: 0; display: flex; flex-direction: column; gap: 5px }
   .profile-text strong { font-size: 14px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 175px }
   .connection { display: flex; align-items: center; gap: 5px; font-size: 11px; color: var(--text-secondary) }
-  .profile-dropdown { position: absolute; top: calc(100% + 8px); left: -3px; right: -3px; z-index: 20; padding: 7px; border-radius: 20px; opacity: 0; visibility: hidden; transform: translateY(-7px) scale(.97); transform-origin: top center; transition: opacity .18s, transform .2s, visibility .18s; background: var(--menu-bg) }
+  .profile-dropdown { position: absolute; top: calc(100% + 8px); left: -3px; right: -3px; z-index: 20; padding: 5px 5px; border-radius: 9px; opacity: 0; visibility: hidden; transform: translateY(-7px) scale(.97); transform-origin: top center; transition: opacity .18s, transform .2s, visibility .18s; background: var(--menu-bg) }
   .profile-control::after { content: ""; position: absolute; top: 100%; left: 0; right: 0; height: 12px }
   .profile-dropdown.open { opacity: 1; visibility: visible; transform: translateY(0) scale(1) }
   .profile-dropdown > button { display: flex; align-items: center; gap: 11px; width: 100%; padding: 11px 12px; border-radius: 12px; text-align: left; font-size: 13px }
@@ -456,18 +479,18 @@
   .profile-dropdown .logout { color: var(--danger); margin-top: 3px }
   .privacy-toggle { display: flex; align-items: center; gap: 11px; padding: 9px 12px; font-size: 13px; cursor: pointer }
   .privacy-toggle .switch { margin-left: auto }
-  .settings-dialog { width: 420px; max-width: calc(100vw - 32px); max-height: calc(100vh - 32px); overflow-y: auto; padding: 24px; border-radius: 26px; color: var(--text-primary); background: var(--menu-bg) }
+  .settings-dialog { --settings-inset: 24px; --settings-gap: 13px; width: 420px; max-width: calc(100vw - 32px); max-height: calc(100vh - 32px); overflow-y: auto; padding: 24px 0; border-radius: 26px; color: var(--text-primary); background: var(--menu-bg) }
   .settings-dialog::backdrop { background: rgba(0,0,0,.5); backdrop-filter: blur(8px) }
-  .settings-dialog header { display: flex; align-items: center; justify-content: space-between }
+  .settings-dialog header { display: flex; align-items: center; justify-content: space-between; padding-inline: var(--settings-inset) }
   .settings-dialog header h2 { flex: 1 }
   .settings-back { margin-left: -8px; margin-right: 6px }
   .settings-pages { display: grid; overflow: hidden; padding-top: 12px }
-  .settings-page { grid-area: 1 / 1; min-width: 0 }
-  .settings-categories { display: grid; gap: 3px; margin-top: 18px }
-  .settings-categories button { display: flex; align-items: center; gap: 12px; width: 100%; padding: 12px 5px; border-radius: 12px; text-align: left; font-size: 14px }
+  .settings-page { grid-area: 1 / 1; min-width: 0; padding-inline: var(--settings-inset) }
+  .settings-categories { --category-inset: 8px; display: grid; gap: 3px; margin: 18px calc(var(--category-inset) - var(--settings-inset)) 0 }
+  .settings-categories button { display: grid; grid-template-columns: calc((var(--settings-avatar-size) + 20px) / 2) minmax(0, 1fr) 17px; align-items: center; gap: var(--settings-gap); width: 100%; padding: 12px calc(var(--settings-inset) - var(--category-inset)); border-radius: 12px; text-align: left; font-size: 14px }
   .settings-categories button:hover { background: var(--hover) }
-  .settings-categories button > span { flex: 1 }
-  .settings-categories :global(.icon) { color: var(--text-secondary) }
+  .settings-categories button:focus-visible { outline-offset: -2px }
+  .settings-categories :global(.icon) { justify-self: end; color: var(--text-secondary) }
   .settings-version { display: grid; justify-items: center; gap: 3px; padding-top: 24px; color: var(--text-tertiary); font-size: 11px }
   .settings-version span + span { font-size: 10px }
   .theme-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px 10px; padding: 6px 2px 16px }
@@ -494,7 +517,7 @@
   .settings-dialog h2 { margin: 0; font-size: 21px; font-weight: 550 }
   .settings-dialog h3 { margin: 22px 0 8px; font-size: 18px; color: var(--text-primary); font-weight: 600 }
   .settings-page > h3:first-child { margin-top: 4px }
-  .settings-account { display: flex; align-items: center; gap: 13px; margin-top: 6px }
+  .settings-account { display: flex; align-items: center; gap: var(--settings-gap); margin-top: 6px }
   .settings-account > span { display: grid; gap: 5px }
   .settings-account strong { font-size: 16px; font-weight: 500 }
   .settings-account span span { font-size: 12px; color: var(--text-secondary) }
@@ -504,6 +527,7 @@
   .notification-disabled { color: var(--text-secondary); cursor: default }
   .font-select, .drive-select { max-width: 100%; padding: 6px 9px; color: var(--text-primary); background: var(--bg-sidebar); border: 1px solid var(--border); border-radius: 8px; font-size: 13px; cursor: pointer }
   .font-select { min-width: min(150px, 100%) }
+  .layout-select { min-width: 0; max-width: 55% }
   @supports (appearance: base-select) {
     .font-select, .font-select::picker(select) { appearance: base-select }
     .font-select::picker(select) { margin-block: 5px; min-width: 246px; padding: 4px; color: var(--text-primary); background: var(--bg-sidebar); border: 1px solid var(--border); border-radius: 10px; box-shadow: 0 10px 28px rgba(0,0,0,.28) }
@@ -537,18 +561,34 @@
   .lock-note { margin: 0; color: var(--text-secondary); font-size: 11px; line-height: 1.5 }
   .search { display: flex; align-items: center; gap: 9px; height: 40px; padding: 0 14px; border-radius: 22px; color: var(--text-secondary); background: var(--bg-input) }
   .search input { width: 100%; min-width: 0; padding: 0; background: transparent; font-size: 12px }
-  .folders { display: flex; gap: 6px; overflow-x: auto; padding: 13px 0 3px; scrollbar-width: none }
+  .folders { display: flex; gap: 6px; overflow-x: auto; margin: 0 14px 10px; padding: 13px 0 3px; scrollbar-width: none }
   .folders button { position: relative; z-index: 0; display: inline-flex; align-items: center; gap: 5px; white-space: nowrap; padding: 7px 12px; border-radius: 20px; font-size: 12px; color: var(--text-secondary); flex-shrink: 0; transition: background .18s, color .18s }
   .folder-count { min-width: 19px; padding: 1px 5px; border-radius: 10px; background: color-mix(in srgb, currentColor 15%, transparent); font-size: 12px; line-height: 16px; font-variant-numeric: tabular-nums; text-align: center }
   .folders button:hover { background: var(--hover); color: var(--text-primary) }
   .folders button.active { color: var(--folder-active-text, var(--text-on-accent)) }
   .pill-active { position: absolute; inset: 0; z-index: -1; border-radius: inherit; background: var(--folder-active, var(--accent)); pointer-events: none }
+  .flat-sidebar { border: 0; border-radius: 0 }
+  .folder-rail { --folder-rail-width: 64px; display: grid; grid-template-columns: var(--folder-rail-width) minmax(0, 1fr); grid-template-rows: auto minmax(0, 1fr) auto; width: clamp(265px, 25vw, 310px); border-inline-end: 1px solid var(--border) }
+  .folder-rail::before { position: absolute; inset: 0 auto 0 0; z-index: -1; width: var(--folder-rail-width); background: color-mix(in srgb, var(--bg-sidebar) 55%, transparent); content: ""; pointer-events: none }
+  .folder-rail .sidebar-top { grid-area: 1 / 2; padding: 12px 9px 7px }
+  .folder-rail .profile-control { margin-bottom: 9px }
+  .folder-rail .search { height: 34px; padding-inline: 10px }
+  .folder-rail .folders { grid-area: 1 / 1 / 3 / 2; flex-direction: column; overflow: auto; margin: 0; padding: 10px 5px 4px }
+  .folder-rail .folders button { display: grid; justify-items: center; gap: 4px; padding: 7px 3px; border-radius: 10px; font-size: 10px }
+  .folder-rail .folder-label { max-width: 100%; overflow: hidden; text-overflow: ellipsis }
+  .folder-rail .folder-count { position: absolute; right: 2px; top: 1px; min-width: 14px; padding: 0 3px; background: var(--accent); color: var(--text-on-accent); font-size: 9px; line-height: 14px }
+  .folder-rail .list { grid-area: 2 / 2 / 4 / 3; padding-inline: 5px }
+  .folder-rail .chat-item { gap: 7px; padding: 7px 5px; border-radius: 11px }
+  .folder-rail .row1 strong { font-size: 12px }
+  .folder-rail .preview { font-size: 11px }
+  .rail-settings { grid-area: 3 / 1; display: grid; justify-items: center; gap: 4px; margin: 3px 5px 8px; padding: 7px 2px; border-radius: 10px; color: var(--text-secondary); font-size: 10px }
+  .rail-settings:hover { background: var(--hover); color: var(--text-primary) }
   .list { overflow-y: auto; flex: 1; min-height: 0; padding: 0 8px 10px; scrollbar-gutter: stable }
   .pinned-divider { margin: 5px 8px 7px; border: 0; border-top: 1px solid var(--border) }
   .chat-item { width: 100%; display: flex; align-items: center; gap: 9px; padding: 10px 8px; border-radius: 17px; text-align: left; margin-bottom: 2px; transition: background .16s }
   .chat-item:hover { background: var(--hover) }
   .chat-item.active { background: var(--accent-soft) }
-  .chat-info { flex: 1; min-width: 0; display: grid; gap: 5px }
+  .chat-info { flex: 1; min-width: 0; display: grid; gap: 3px }
   .chat-info, .chat-avatar { transition: filter .18s, opacity .18s }
   .privacy-hidden .chat-info, .privacy-hidden .chat-avatar { filter: blur(5px) grayscale(1); opacity: .5 }
   .chat-avatar { position: relative; display: flex; flex-shrink: 0 }
@@ -566,12 +606,12 @@
   .preview-author { color: var(--accent-hover); max-width: 50%; flex-shrink: 0 }
   .preview :global(svg) { display: inline; vertical-align: -2px; margin-right: 3px }
   .row2 > :global(svg) { flex-shrink: 0; color: var(--text-tertiary) }
-  .badge { min-width: 18px; border-radius: 8px; padding: 2px 5px; background: var(--accent); color: var(--text-on-accent); font-size: 9px; text-align: center; flex-shrink: 0 }
+  .badge { min-width: 18px; border-radius: 8px; padding: 2px 5px; background: #5a5e64a8; color: #ffffffb0; font-size: 9px; font-weight: 500; text-align: center; flex-shrink: 0 }
   .unread-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--accent); flex-shrink: 0 }
-  .muted .badge, .muted .unread-dot { background: #626872; color: #fff }
+  .muted .unread-dot { background: #626872; color: #fff }
   .stale .chat-item { filter: blur(5px); pointer-events: none; cursor: default }
   .load-more { color: var(--text-secondary); font-size: 11px; padding: 13px; width: 100%; border-radius: 14px }
   .load-more:hover { color: var(--accent); background: var(--hover) }
   .empty { color: var(--text-secondary); text-align: center; padding: 35px 10px; font-size: 12px }
-  @media (max-width: 820px) { .sidebar { width: 280px; min-width: 230px } .sidebar-top { padding: 15px 11px 8px } }
+  @media (max-width: 820px) { .sidebar { width: 280px; min-width: 230px } .sidebar-top { padding: 15px 11px 0 } .folders { margin: 0 11px 8px } }
 </style>

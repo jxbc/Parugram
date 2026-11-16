@@ -594,12 +594,12 @@
   .menu-dismiss { position: fixed; inset: 0; z-index: 100; background: transparent; cursor: default }
   .context-popover { position: fixed; z-index: 101; display: flex; flex-direction: column; gap: 8px; width: max-content; max-width: min(290px, calc(100vw - 16px)); min-width: min(215px, calc(100vw - 16px)); max-height: calc(100vh - 16px); animation: appear .14s ease-out }
   .context-popover.with-reactions { width: min(290px, calc(100vw - 16px)) }
-  .context-menu { width: 100%; min-height: 0; overflow-y: auto; padding: 6px; border-radius: 17px; background: var(--menu-bg) }
+  .context-menu { width: 100%; min-height: 0; overflow-y: auto; padding: 5px 5px; border-radius: 9px; background: var(--menu-bg) }
   .context-menu .reaction-picker { border: 0; padding: 3px 4px; background: transparent; box-shadow: none; backdrop-filter: none }
   .context-menu > button, .viewer-popover button, .focus-actions button { display: flex; align-items: center; gap: 10px; padding: 10px 12px; width: 100%; text-align: left; font-size: 12px; border-radius: 11px; white-space: nowrap }
   .context-menu > button:hover, .context-menu > button.open, .viewer-popover button:hover, .focus-actions button:hover { background: var(--accent-soft) }
   .viewers-trigger span { flex: 1 }
-  .viewer-popover { position: absolute; max-width: calc(100vw - 16px); max-height: min(250px, calc(100vh - 16px)); overflow-y: auto; overscroll-behavior: contain; padding: 5px; border-radius: 15px; background: var(--menu-bg) }
+  .viewer-popover { position: absolute; max-width: calc(100vw - 16px); max-height: min(250px, calc(100vh - 16px)); overflow-y: auto; overscroll-behavior: contain; padding: 5px 5px; border-radius: 9px; background: var(--menu-bg) }
   .viewer-popover button, .reaction-people > button { padding: 6px 8px }
   .viewer-popover button span, .reaction-people > button span { overflow: hidden; text-overflow: ellipsis }
   .reaction-people { max-height: min(250px, calc(100vh - 16px)); overscroll-behavior: contain }

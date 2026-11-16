@@ -59,6 +59,7 @@
 <style>
   .rich-text { display: inline; white-space: pre-wrap; overflow-wrap: anywhere; user-select: text }
   .mention, a { display: inline; padding: 0; color: var(--accent-hover); font: inherit; text-align: inherit; white-space: inherit; user-select: text }
+  a { font-weight: 400 }
   .mention:hover, a:hover { text-decoration: underline; text-underline-offset: 3px }
   strong { font-weight: 650 }
   code { font-family: "Geist Mono", Consolas, monospace; font-size: .92em; font-weight: 400; padding: 1px 4px; border-radius: 4px; background: var(--bg-input) }

@@ -15,6 +15,8 @@
   let entryReady = $state(false)
   let unreadBoundary = $state<number | null>(null)
   let visibleDay = $state<string | null>(null)
+  let showFloatingDate = $state(false)
+  let floatingDateTimer: ReturnType<typeof setTimeout> | undefined
   let touchY: number | null = null
   let awayFromBottom = $state(false)
   let trimTimer: ReturnType<typeof setTimeout> | undefined
@@ -319,6 +321,7 @@
       clearTimeout(readTimer)
       clearTimeout(highlightTimer)
       clearTimeout(trimTimer)
+      clearTimeout(floatingDateTimer)
       rowObserver?.disconnect()
       store.atBottom.delete(chatId)
       store.readPaused.delete(chatId)
@@ -394,7 +397,13 @@
   function onScroll() {
     updateFloatingDay()
     if (!container || !entryReady || jumping) return
-    const bottomGap = container.scrollHeight - container.scrollTop - container.clientHeight
+    const maxScrollTop = Math.max(0, container.scrollHeight - container.clientHeight)
+    const bottomGap = maxScrollTop - container.scrollTop
+    if (container.scrollTop !== Math.min(anchoredScrollTop, maxScrollTop)) {
+      showFloatingDate = true
+      clearTimeout(floatingDateTimer)
+      floatingDateTimer = setTimeout(() => { showFloatingDate = false }, 650)
+    }
     stickToBottom = bottomGap <= 2 && store.historyAtLatest.get(chatId) !== false
     awayFromBottom = !stickToBottom
     store.atBottom.set(chatId, stickToBottom)
@@ -459,7 +468,7 @@
   {:else}
     {#each days as day (day.key)}
       <section class="message-day" data-message-day={day.key} aria-label={new Date(day.date * 1000).toLocaleDateString("ru")}>
-        <div class="date-divider glass" class:current-day={day.key === floatingDay?.key}>{new Date(day.date * 1000).toLocaleDateString("ru", { day: "numeric", month: "long" })}</div>
+        <div class="date-divider glass" class:current-day={showFloatingDate && day.key === floatingDay?.key}>{new Date(day.date * 1000).toLocaleDateString("ru", { day: "numeric", month: "long" })}</div>
     {#each day.entries as { msg, index: i } (messageRenderKey(msg))}
       {@const key = messageRenderKey(msg)}
       {@const target = store.jumpTarget}
@@ -489,7 +498,7 @@
   {/if}
 </div>
 {#if floatingDay}
-  <div class="date-divider floating-date glass">{new Date(floatingDay.date * 1000).toLocaleDateString("ru", { day: "numeric", month: "long" })}</div>
+  <div class="date-divider floating-date glass" class:visible={showFloatingDate} aria-hidden="true">{new Date(floatingDay.date * 1000).toLocaleDateString("ru", { day: "numeric", month: "long" })}</div>
 {/if}
 {#if awayFromBottom || store.historyAtLatest.get(chatId) === false}
   <button class="latest" aria-label="К последним сообщениям" onclick={() => {
@@ -560,7 +569,16 @@
   }
   .date-divider.current-day { visibility: hidden }
   :global(.app[data-theme="telegram"]) .date-divider { background: #1e2c3a; color: #fff; border-color: transparent; box-shadow: none }
-  .floating-date { position: relative; grid-area: 2 / 1; align-self: start; justify-self: center; z-index: 1; margin: 7px 0 0; pointer-events: none }
+  .floating-date { position: relative; grid-area: 2 / 1; align-self: start; justify-self: center; z-index: 1; margin: 7px 0 0; opacity: 0; pointer-events: none }
+  .floating-date.visible { opacity: 1 }
+  @media (prefers-reduced-motion: no-preference) { .floating-date { transition: opacity .16s ease } }
+  .floating-date, :global(.app[data-theme="telegram"]) .floating-date {
+    background: rgb(25 30 40 / 70%);
+    border: 0px solid var(--border);
+    color: var(--text-secondary);
+    font-size: 10px;
+    padding: 5px 9px;
+  }
   .empty {
     margin: auto;
     color: var(--text-secondary);

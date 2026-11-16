@@ -1228,7 +1228,7 @@ test("preserves inherited chat notification settings and applies chat overrides 
 
 test("persists custom themes independently from account data and restores the Next wallpaper", async () => {
   const app = await ready()
-  app.updateCustomization({ theme: "next", fontFamily: "Fixel Display", fontSize: 16, bubbleRadius: 22, panelOpacity: 70, dynamicGlow: false })
+  app.updateCustomization({ theme: "next", fontFamily: "Fixel Display", layout: "panels", fontSize: 16, bubbleRadius: 22, panelOpacity: 70, dynamicGlow: false })
   assert.match(app.customizationStyles(), /--chat-wallpaper:url\("\/themes\/next.png"\)/)
   assert.match(app.customizationStyles(), /--interface-font:"Fixel Display"/)
   app.events().onAuthState({ stage: "logged_out", user: null })
@@ -1237,13 +1237,17 @@ test("persists custom themes independently from account data and restores the Ne
   app.restoreCustomization()
   assert.equal(app.store.customization.theme, "next")
   assert.equal(app.store.customization.fontFamily, "Fixel Display")
+  assert.equal(app.store.customization.layout, "panels")
   assert.equal(app.store.customization.fontSize, 16)
   assert.equal(app.store.customization.bubbleRadius, 22)
   assert.equal(app.store.customization.dynamicGlow, false)
   app.resetCustomization()
   assert.equal(app.store.customization.theme, "default")
-  assert.equal(app.store.customization.fontFamily, "Geist Sans")
-  assert.equal(app.store.customization.fontSize, 14)
+  assert.equal(app.store.customization.fontFamily, "Open Sans")
+  assert.equal(app.store.customization.layout, "classic")
+  assert.equal(app.store.customization.fontSize, 13)
+  assert.equal(app.store.customization.bubbleRadius, 19)
+  assert.equal(app.store.customization.panelOpacity, 78)
   assert.equal(app.store.customization.dynamicGlow, true)
 })
 
@@ -1304,7 +1308,7 @@ test("validates custom colors, local image paths, and slider ranges before gener
   assert.equal(normalized.theme, "default")
   assert.equal(normalized.accent, "#347fff")
   assert.equal(normalized.wallpaper, null)
-  assert.equal(normalized.fontFamily, "Geist Sans")
+  assert.equal(normalized.fontFamily, "Open Sans")
   assert.equal(app.normalizeCustomization({ fontFamily: "Verdana" }).fontFamily, "Geist Sans")
   for (const fontFamily of ["Geist Mono", "Onest", "Consolas", "Courier New"]) {
     assert.equal(app.normalizeCustomization({ fontFamily }).fontFamily, fontFamily)

@@ -5,6 +5,8 @@
   import type { ComposerStatus, UserPayload } from "$lib/api/td"
   import Paperclip from "@lucide/svelte/icons/paperclip"
   import { onDestroy, onMount, tick } from "svelte"
+  import { cubicInOut } from "svelte/easing"
+  import { slide } from "svelte/transition"
   import { open } from "@tauri-apps/plugin-dialog"
   import { convertFileSrc } from "@tauri-apps/api/core"
   import encoderPath from "opus-recorder/dist/encoderWorker.min.js?url"
@@ -424,13 +426,6 @@
     </div>
   {/if}
   {#if error}<div class="error" role="alert">{error}</div>{/if}
-  {#if reference}
-    <div class="reference">
-      {#if draft.editing}<Icon name="edit-pencil" size={16} />{:else}<Icon name="reply" size={16} />{/if}
-      <span><strong>{draft.editing ? "Редактирование" : messageSender(reference).name || "Ответ"}</strong><span>{messagePreview(reference.content)}</span></span>
-      <button class="icon-button" aria-label={draft.editing ? "Отменить редактирование" : "Отменить ответ"} onclick={cancelReference} disabled={sending}><Icon name="xmark" size={16} /></button>
-    </div>
-  {/if}
   {#if attachment}
     <div class="attachment">
       {#snippet thumbnail()}
@@ -452,41 +447,52 @@
   {#if attachment?.kind === "voice" && preview}{#key preview}<audio class="recorded-voice" use:releaseMedia src={preview} controls preload="metadata"></audio>{/key}{/if}
   <div class="row">
     <div class="row-surface glass glowing-panel" aria-hidden="true"></div>
-    {#if recording}<button class="attach recording-cancel" aria-label="Отменить запись" onclick={cancelRecording}><Icon name="trash" size={21} /></button><span class="recording-time"><i></i>{formatDuration(seconds)}</span>{:else}<button class="attach" title="Прикрепить файл" onclick={attach} disabled={sending || choosing || recordingStarting || !!draft.editing || !store.chatsReady}><Paperclip size={22} strokeWidth={1.5} /></button>{/if}
-    <textarea bind:this={input} class="input" placeholder={recording ? "Запись..." : attachment ? "Подпись..." : "Напиши сообщение..."} aria-label={attachment ? "Подпись к вложению" : "Сообщение"} aria-controls={mentionOpen ? `mentions-${chatId}` : undefined} aria-activedescendant={mentionOpen && mentionOptions.length ? `mention-${chatId}-${mentionIndex}` : undefined} rows="1" value={draft.text} disabled={recording || recordingStarting} onfocus={() => store.focusedConversation = chatId} onblur={() => { if (typingActive) stopStatus() }} oninput={updateText} onkeydown={inputKeys} onkeyup={updateCaret} onclick={updateCaret} onselect={updateCaret}></textarea>
-    <div class="sticker-control" role="group" aria-label="Стикеры" bind:this={stickerControl} onpointerenter={hoverStickers} onpointerleave={leaveStickers}>
-      <button class="attach sticker-toggle" class:active={stickerPinned} title="Стикеры" aria-label="Стикеры" aria-expanded={stickersOpen || stickerPinned} onclick={toggleStickers} disabled={sending || choosing || recording || recordingStarting || !!draft.editing || !store.chatsReady}><Icon name="ph:sticker" size={22} /></button>
-      {#if stickersOpen}<StickerPicker {chatId} onclose={closeStickers} />{/if}
+    {#if reference}
+      <div class="reference" transition:slide={{ duration: store.effects === "full" && !window.matchMedia("(prefers-reduced-motion: reduce)").matches ? 200 : 0, easing: cubicInOut }}>
+        <Icon name={draft.editing ? "edit-pencil" : "reply"} size={16} />
+        <span><strong>{draft.editing ? "Редактирование" : messageSender(reference).name || "Ответ"}</strong><span>{messagePreview(reference.content)}</span></span>
+        <button class="icon-button" aria-label={draft.editing ? "Отменить редактирование" : "Отменить ответ"} onclick={cancelReference} disabled={sending}><Icon name="xmark" size={16} /></button>
+      </div>
+    {/if}
+    <div class="input-row">
+      {#if recording}<button class="attach recording-cancel" aria-label="Отменить запись" onclick={cancelRecording}><Icon name="trash" size={21} /></button><span class="recording-time"><i></i>{formatDuration(seconds)}</span>{:else}<button class="attach" title="Прикрепить файл" onclick={attach} disabled={sending || choosing || recordingStarting || !!draft.editing || !store.chatsReady}><Paperclip size={22} strokeWidth={1.5} /></button>{/if}
+      <textarea bind:this={input} class="input" placeholder={recording ? "Запись..." : attachment ? "Подпись..." : "Напиши сообщение..."} aria-label={attachment ? "Подпись к вложению" : "Сообщение"} aria-controls={mentionOpen ? `mentions-${chatId}` : undefined} aria-activedescendant={mentionOpen && mentionOptions.length ? `mention-${chatId}-${mentionIndex}` : undefined} rows="1" value={draft.text} disabled={recording || recordingStarting} onfocus={() => store.focusedConversation = chatId} onblur={() => { if (typingActive) stopStatus() }} oninput={updateText} onkeydown={inputKeys} onkeyup={updateCaret} onclick={updateCaret} onselect={updateCaret}></textarea>
+      <div class="sticker-control" role="group" aria-label="Стикеры" bind:this={stickerControl} onpointerenter={hoverStickers} onpointerleave={leaveStickers}>
+        <button class="attach sticker-toggle" class:active={stickerPinned} title="Стикеры" aria-label="Стикеры" aria-expanded={stickersOpen || stickerPinned} onclick={toggleStickers} disabled={sending || choosing || recording || recordingStarting || !!draft.editing || !store.chatsReady}><Icon name="ph:sticker" size={22} /></button>
+        {#if stickersOpen}<StickerPicker {chatId} onclose={closeStickers} />{/if}
+      </div>
+      <div class="status-control" bind:this={statusControl}>
+        <button class="attach" class:active={!!manualStatus || statusOpen} title="Статусы активности" aria-label="Статусы активности" aria-expanded={statusOpen} bind:this={statusButton} disabled={sending || choosing || recording || recordingStarting || !!draft.editing || !store.chatsReady} onclick={() => { stickersOpen = false; statusOpen = !statusOpen }}><Icon name="sparks" size={21} /></button>
+        {#if statusOpen}
+          <div class="status-popover glass" role="group" aria-label="Статусы активности">
+            {#each statuses as { action, label } (action)}
+              <button aria-pressed={manualStatus === action} onclick={() => selectStatus(action)}>{label}{#if manualStatus === action}<Icon name="check" size={14} />{/if}</button>
+            {/each}
+            {#if statusError}<div class="inline-error" role="alert">{statusError}</div>{/if}
+          </div>
+        {/if}
+      </div>
+      <button class="send" class:send-mode={canSend} title={recording ? "Завершить запись" : draft.editing ? "Сохранить" : canSend ? "Отправить" : "Записать голосовое"} aria-label={recording ? "Завершить запись" : canSend ? "Отправить" : "Записать голосовое"} onclick={primaryAction} disabled={sending || choosing || recordingStarting || !!draft.editing && !canSend || !store.chatsReady}>{#if recording}<Icon name="square" size={22} />{:else}<span class="microphone-icon"><Icon name="microphone" size={23} /></span><span class="send-icon"><Icon name="send-solid" size={22} /></span>{/if}</button>
     </div>
-    <div class="status-control" bind:this={statusControl}>
-      <button class="attach" class:active={!!manualStatus || statusOpen} title="Статусы активности" aria-label="Статусы активности" aria-expanded={statusOpen} bind:this={statusButton} disabled={sending || choosing || recording || recordingStarting || !!draft.editing || !store.chatsReady} onclick={() => { stickersOpen = false; statusOpen = !statusOpen }}><Icon name="sparks" size={21} /></button>
-      {#if statusOpen}
-        <div class="status-popover glass" role="group" aria-label="Статусы активности">
-          {#each statuses as { action, label } (action)}
-            <button aria-pressed={manualStatus === action} onclick={() => selectStatus(action)}>{label}{#if manualStatus === action}<Icon name="check" size={14} />{/if}</button>
-          {/each}
-          {#if statusError}<div class="inline-error" role="alert">{statusError}</div>{/if}
-        </div>
-      {/if}
-    </div>
-    <button class="send" class:send-mode={canSend} title={recording ? "Завершить запись" : draft.editing ? "Сохранить" : canSend ? "Отправить" : "Записать голосовое"} aria-label={recording ? "Завершить запись" : canSend ? "Отправить" : "Записать голосовое"} onclick={primaryAction} disabled={sending || choosing || recordingStarting || !!draft.editing && !canSend || !store.chatsReady}>{#if recording}<Icon name="square" size={22} />{:else}<span class="microphone-icon"><Icon name="microphone" size={23} /></span><span class="send-icon"><Icon name="send-solid" size={22} /></span>{/if}</button>
   </div>
 </footer>
 
 <style>
   .composer { position: relative; padding: 8px 16px 3px }
-  .mention-list { position: absolute; bottom: calc(100% + 6px); left: 16px; right: 16px; z-index: 3; max-height: 260px; overflow-y: auto; padding: 5px; border-radius: 19px; background: var(--menu-bg); box-shadow: 0 12px 35px rgba(0,0,0,.25); animation: appear .15s ease-out }
+  .mention-list { position: absolute; bottom: calc(100% + 6px); left: 16px; right: 16px; z-index: 3; max-height: 260px; overflow-y: auto; padding: 5px 5px; border-radius: 9px; background: var(--menu-bg); box-shadow: 0 12px 35px rgba(0,0,0,.25); animation: appear .15s ease-out }
   .mention-list button { display: flex; align-items: center; gap: 10px; width: 100%; padding: 8px 9px; text-align: left; border-radius: 14px }
   .mention-list button:hover, .mention-list .selected { background: var(--accent-soft) }
   .mention-list button > span { display: grid; gap: 2px; min-width: 0 }
   .mention-list strong { font-size: 13px; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap }
-  .mention-list button > span > span { font-size: 11px; color: var(--text-secondary) }
+  .mention-list button > span > span { font-size: 11px; color: var(--accent-hover) }
   .mention-empty { display: block; padding: 12px; font-size: 12px; color: var(--text-secondary) }
-  .row { --composer-icon: color-mix(in srgb, var(--text-secondary) 50%, #92969c); position: relative; isolation: isolate; display: flex; align-items: center; gap: 10px; padding: 5px 10px; border: 1px solid transparent; border-radius: 26px; min-height: 48px }
+  .row { --composer-icon: color-mix(in srgb, var(--text-secondary) 50%, #92969c); position: relative; isolation: isolate; padding: 5px 10px; border: 1px solid transparent; border-radius: 26px }
   .row-surface { position: absolute; inset: -1px; z-index: -1; border-radius: inherit; pointer-events: none }
+  .input-row { display: flex; align-items: center; gap: 10px; min-height: 36px }
   @container (max-width: 480px) {
     .composer { padding-inline: 4px }
-    .row { gap: 4px; padding-inline: 6px }
+    .row { padding-inline: 6px }
+    .input-row { gap: 4px }
   }
   .attach { display: flex; align-items: center; justify-content: center; color: var(--composer-icon); padding: 6px; border-radius: 50% }
   .attach:hover, .attach.active { color: var(--text-primary); background: var(--hover) }
@@ -494,15 +500,15 @@
   .sticker-toggle.active { color: var(--accent-hover); background: var(--accent-soft) }
   .status-control { position: relative; display: flex; flex-shrink: 0 }
   .status-control .active { color: var(--accent-hover); background: var(--accent-soft) }
-  .status-popover { position: absolute; z-index: 5; bottom: calc(100% + 10px); right: 0; width: 184px; max-height: min(320px, 65vh); overflow-y: auto; padding: 5px; border-radius: 14px; background: var(--menu-bg) }
+  .status-popover { position: absolute; z-index: 5; bottom: calc(100% + 10px); right: 0; width: 184px; max-height: min(320px, 65vh); overflow-y: auto; padding: 5px 5px; border-radius: 9px; background: var(--menu-bg) }
   .status-popover button { display: flex; align-items: center; justify-content: space-between; gap: 6px; width: 100%; padding: 7px 8px; border-radius: 8px; text-align: left; font-size: 12px }
   .status-popover button:hover { background: var(--hover) }
   .status-popover button[aria-pressed="true"] { color: var(--accent-hover); background: var(--accent-soft) }
   .input { flex: 1; min-width: 0; resize: none; border-radius: 0; padding: 6px 0; font-size: 13px; background: transparent; max-height: 150px; line-height: 1.4; user-select: text }
   .send { position: relative; width: 36px; height: 36px; flex-shrink: 0; color: var(--composer-icon); background: transparent; padding: 6px; border-radius: 50%; display: grid; place-items: center; transition: background .15s, opacity .15s }
   .send:hover:not(:disabled) { color: var(--text-primary); background: var(--hover) }
-  .send:not(.send-mode):has(.microphone-icon) { color: var(--text-on-accent); background: var(--accent) }
-  .send:not(.send-mode):has(.microphone-icon):hover:not(:disabled) { background: var(--accent-hover) }
+  .send:has(.microphone-icon) { color: var(--text-on-accent); background: var(--accent) }
+  .send:has(.microphone-icon):hover:not(:disabled) { background: var(--accent-hover) }
   :global(.app[data-theme="telegram"]) .row { --composer-icon: #6c7883 }
   :global(.app[data-theme="telegram"]) .row-surface { border-color: transparent; box-shadow: none }
   :global(.app[data-theme="telegram"]) .input::placeholder { color: #6d7883; opacity: 1 }
@@ -518,14 +524,15 @@
   .recorded-voice { display: block; width: min(100%, 360px); height: 34px; margin: 0 17px 10px }
   @keyframes recording-pulse { to { opacity: .3 } }
   .error { color: var(--danger); font-size: 12px; padding: 0 12px 8px; overflow-wrap: anywhere }
-  .attachment, .reference { display: flex; align-items: center; gap: 12px; margin: 0 17px 10px; min-width: 0; padding: 10px 12px; border-radius: 14px; background: rgba(14,23,37,.9); -webkit-backdrop-filter: blur(var(--glass-blur)); backdrop-filter: blur(var(--glass-blur)) }
+  .attachment { display: flex; align-items: center; gap: 12px; margin: 0 17px 10px; min-width: 0; padding: 10px 12px; border-radius: 14px; background: rgba(14,23,37,.9); -webkit-backdrop-filter: blur(var(--glass-blur)); backdrop-filter: blur(var(--glass-blur)) }
   .thumbnail { width: 66px; height: 52px; padding: 0; border: 1px solid var(--border); border-radius: 12px; overflow: hidden; display: grid; place-items: center; color: var(--accent-hover); background: var(--accent-soft); flex-shrink: 0 }
   .thumbnail img, .thumbnail video { width: 100%; height: 100%; object-fit: cover }
   .attachment-info, .reference > span { display: grid; gap: 5px; flex: 1; min-width: 0 }
   .attachment-info strong, .reference strong { font-size: 12px; font-weight: 550; overflow: hidden; text-overflow: ellipsis; white-space: nowrap }
   .attachment-info > span, .reference > span > span { font-size: 10px; color: var(--text-secondary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap }
   .preview-error { display: block; color: var(--danger); margin-top: 4px }
-  .reference { border-left: 2px solid var(--accent); border-radius: 12px; padding: 10px 12px; background: rgba(20,32,50,.86); -webkit-backdrop-filter: blur(var(--glass-blur)); backdrop-filter: blur(var(--glass-blur)) }
+  .reference { display: flex; align-items: center; gap: 10px; margin: 2px 0 3px; padding: 2px 5px 2px 9px }
   .reference > span { gap: 1px }
-  .reference > :global(.icon), .reference strong { color: var(--accent-hover) }
+  .reference > button { width: 30px; height: 30px }
+  .reference > :global(.icon), .reference strong { color: var(--accent-hover); filter: saturate(1.2) brightness(1.15) }
 </style>

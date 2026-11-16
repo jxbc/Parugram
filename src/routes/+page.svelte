@@ -165,7 +165,7 @@
   {#if !store.appLock || store.appLock.locked || store.appLock.logged_out || lockError}
     <AppLockScreen startupError={lockError} retry={() => void refreshLock()} />
   {:else if ready || store.chatWindowId !== null}
-    <div class="app-content">
+    <div class="app-content" class:column-layout={store.customization.layout === "panels" && store.chatWindowId === null}>
       {#if store.chatWindowId === null}
         <div class="sidebar-slot" class:sidebar-inactive={compact && showWorkspace} inert={compact && showWorkspace}><Sidebar /></div>
       {/if}
@@ -232,8 +232,8 @@
   .download-error { color: var(--danger) }
   .download-info progress { width: 100%; height: 5px; accent-color: var(--accent) }
   .app-content { display: flex; flex: 1; min-width: 0; min-height: 0; gap: var(--app-inset) }
-  .sidebar-slot { display: flex; min-width: 0; flex-shrink: 0 }
-  .workspace { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 10px; height: 100% }
+  .sidebar-slot { display: flex; min-width: 0; min-height: 0; flex-shrink: 0 }
+  .workspace { flex: 1; min-width: 0; min-height: 0; display: flex; flex-direction: column; gap: 10px; height: 100% }
   .chat-window-status { margin: auto; display: grid; justify-items: center; gap: 12px; text-align: center; color: var(--text-secondary); overflow-wrap: anywhere }
   .conversation-layout { flex: 1; min-width: 0; min-height: 0; display: flex; gap: 14px }
   .right-pane { display: flex; flex-shrink: 0; width: clamp(340px, 44%, 650px); min-width: 0; height: 100%; overflow: hidden; border-radius: 26px }
@@ -250,6 +250,22 @@
     background: var(--bg-main);
   }
   .app.custom-titlebar { --titlebar-height: 32px; padding-top: calc(var(--titlebar-height) + var(--app-inset)) }
+  .app:has(> .column-layout) { padding: 0 }
+  .app.custom-titlebar:has(> .column-layout) { padding-top: var(--titlebar-height) }
+  .app-content.column-layout { gap: 0 }
+  .app:not(.compact) .column-layout { display: grid; grid-template-columns: auto minmax(0, 1fr); grid-template-rows: minmax(0, 1fr) }
+  .column-layout .conversation-layout { display: grid; grid-template-columns: minmax(0, 1fr) auto; grid-template-rows: minmax(0, 1fr); gap: 0 }
+  .column-layout .conversation-layout > :global(.main-view) { grid-area: 1 / 1 }
+  .column-layout .conversation-layout > :global(.profile-panel.embedded), .column-layout .right-pane { grid-area: 1 / 2 }
+  .column-layout .conversation-layout > :global(.chat-view), .column-layout .right-pane > :global(.chat-view) { padding: var(--app-inset) }
+  .column-layout .right-pane { width: clamp(320px, 32vw, 600px); border-radius: 0; border-inline-start: 1px solid var(--border) }
+  .column-layout .right-pane.sticker-pane { width: clamp(320px, 25vw, 460px) }
+  .column-layout .right-pane > :global(.sticker-picker.embedded) { border: 0; border-radius: 0; background: transparent; backdrop-filter: none }
+  @media (max-width: 1199px) {
+    .column-layout .conversation-layout.side-open { grid-template-columns: minmax(0, 1fr) }
+    .column-layout .conversation-layout.side-open .right-pane { grid-column: 1 }
+    .column-layout .right-pane, .column-layout .right-pane.sticker-pane { width: 100%; border-inline-start: 0 }
+  }
   .app.compact { --app-inset: 6px }
   .compact .app-content { position: relative; display: block; overflow: clip }
   .compact .sidebar-slot { height: 100% }
