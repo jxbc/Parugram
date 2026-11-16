@@ -1,0 +1,80 @@
+name: Draft Parugram Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      build_run_id:
+        description: 'ID of a successful Build Parugram run'
+        required: true
+        type: string
+      tag:
+        description: 'Release tag, for example v0.1.0'
+        required: true
+        type: string
+
+concurrency:
+  group: parugram-release-${{ inputs.tag }}
+  cancel-in-progress: false
+
+jobs:
+  draft:
+    runs-on: ubuntu-24.04
+    permissions:
+      actions: read
+      contents: write
+
+    steps:
+      - name: Attach the build artifacts to a release draft
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          BUILD_RUN_ID: ${{ inputs.build_run_id }}
+          RELEASE_TAG: ${{ inputs.tag }}
+        run: |
+          if [[ ! "$BUILD_RUN_ID" =~ ^[0-9]+$ ]]; then
+            echo 'Enter the numeric run ID from the Build Parugram run URL.' >&2
+            exit 1
+          fi
+          git check-ref-format "refs/tags/$RELEASE_TAG"
+
+          build_sha=$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$BUILD_RUN_ID" \
+            --jq 'select(.path == ".github/workflows/build.yml" and .conclusion == "success") | .head_sha')
+          if [[ -z "$build_sha" ]]; then
+            echo 'Select a successful Build Parugram run.' >&2
+            exit 1
+          fi
+
+          tag_sha=$(gh api --paginate "repos/$GITHUB_REPOSITORY/tags?per_page=100" \
+            | jq -r --arg tag "$RELEASE_TAG" '.[] | select(.name == $tag) | .commit.sha')
+          if [[ -n "$tag_sha" && "$tag_sha" != "$build_sha" ]]; then
+            echo 'The release tag already points to a different commit.' >&2
+            exit 1
+          fi
+
+          gh run download "$BUILD_RUN_ID" --repo "$GITHUB_REPOSITORY" --dir artifacts \
+            --name Parugram-Windows-x64 --name Parugram-Linux-ARM64
+
+          shopt -s nullglob
+          windows=(artifacts/Parugram-Windows-x64/*-setup.exe)
+          linux=(artifacts/Parugram-Linux-ARM64/*.deb)
+          if [[ "${#windows[@]}" -ne 1 || "${#linux[@]}" -ne 1 ]]; then
+            echo 'The run must contain one Windows installer and one Linux package.' >&2
+            exit 1
+          fi
+
+          releases=$(gh api --paginate "repos/$GITHUB_REPOSITORY/releases?per_page=100" \
+            | jq -s --arg tag "$RELEASE_TAG" '[.[][] | select(.tag_name == $tag)]')
+          if jq -e 'length == 0' <<< "$releases" >/dev/null; then
+            release_url=$(gh release create --repo "$GITHUB_REPOSITORY" --draft --target "$build_sha" \
+              --title "Parugram $RELEASE_TAG" --notes '' -- "$RELEASE_TAG" "${windows[0]}" "${linux[0]}")
+          elif jq -e --arg sha "$build_sha" --arg tag_sha "$tag_sha" \
+            'length == 1 and .[0].draft and (.[0].target_commitish == $sha or $tag_sha == $sha)' \
+            <<< "$releases" >/dev/null; then
+            gh release upload --repo "$GITHUB_REPOSITORY" --clobber -- "$RELEASE_TAG" "${windows[0]}" "${linux[0]}"
+            release_url=$(jq -r '.[0].html_url' <<< "$releases")
+          else
+            echo 'A release for this tag already exists. Check its commit and draft status.' >&2
+            exit 1
+          fi
+
+          printf '[Open release draft](%s)\n' "$release_url" >> "$GITHUB_STEP_SUMMARY"
