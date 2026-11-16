@@ -1,0 +1,118 @@
+@font-face { font-family: "Inter"; src: url("/fonts/Inter.ttf") format("truetype"); font-style: normal; font-weight: 100 900; font-display: swap }
+@font-face { font-family: "Geist Sans"; src: url("/fonts/GeistSans.woff2") format("woff2"); font-style: normal; font-weight: 100 900; font-display: swap }
+@font-face { font-family: "Geist Mono"; src: url("/fonts/GeistMono.woff2") format("woff2"); font-style: normal; font-weight: 100 900; font-display: swap }
+@font-face { font-family: "Onest"; src: url("/fonts/Onest.ttf") format("truetype"); font-style: normal; font-weight: 100 900; font-display: swap }
+@font-face { font-family: "Fixel Display"; src: url("/fonts/FixelVariable.ttf") format("truetype"); font-style: normal; font-weight: 100 900; font-variation-settings: "wdth" 100; font-display: swap }
+@font-face { font-family: "Apple Color Emoji"; src: local("Apple Color Emoji"), url("/fonts/AppleColorEmoji.ttf") format("truetype"); font-display: swap }
+:root {
+  --bg-main: #090d15;
+  --bg-sidebar: #14181f;
+  --bg-input: rgba(8, 11, 16, .4);
+  --surface: rgba(18, 22, 30, .78);
+  --menu-bg: rgba(14, 19, 28, .84);
+  --composer-bg: rgba(9, 14, 22, .8);
+  --panel-glow: rgba(64, 121, 218, .12);
+  --bubble-in: rgba(27, 49, 81, .6);
+  --bubble-out: rgba(29, 99, 239, .82);
+  --accent: #347fff;
+  --accent-hover: #69a5ff;
+  --accent-soft: rgba(35, 115, 255, .24);
+  --text-primary: #f0f5ff;
+  --text-secondary: #97abc8;
+  --text-tertiary: #697f9f;
+  --text-on-accent: #fff;
+  --border: rgba(125, 174, 255, .14);
+  --hover: rgba(96, 158, 255, .1);
+  --danger: #ff5879;
+  --radius: 19px;
+  --glass-blur: 24px;
+  --emoji-font: "Apple Color Emoji", "Segoe UI Emoji";
+  font-family: "Geist Sans", var(--emoji-font), "Segoe UI", system-ui, sans-serif;
+  font-optical-sizing: auto;
+  font-size: 14px;
+  color: var(--text-primary);
+  color-scheme: dark;
+  background: var(--bg-main);
+}
+* { box-sizing: border-box }
+html, body { margin: 0; padding: 0; height: 100%; overflow: hidden; background: var(--bg-main); -webkit-font-smoothing: antialiased; user-select: none }
+.app { font-family: var(--interface-font, "Geist Sans"), var(--emoji-font), "Segoe UI", system-ui, sans-serif }
+button, input, textarea, select { font: inherit }
+button { border: 0; background: none; color: inherit; cursor: pointer; -webkit-tap-highlight-color: transparent }
+button:disabled { cursor: default }
+button:focus-visible, a:focus-visible, select:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px }
+input, textarea { border: 0; outline: none; color: var(--text-primary); background: var(--bg-input); user-select: text }
+input::placeholder, textarea::placeholder { color: var(--text-secondary); opacity: .8 }
+button, a, input, textarea { touch-action: manipulation }
+a { color: var(--accent-hover); text-decoration: none }
+svg { flex-shrink: 0 }
+.glass { background: var(--surface); border: 1px solid var(--border); -webkit-backdrop-filter: var(--glass-filter, blur(var(--glass-blur))); backdrop-filter: var(--glass-filter, blur(var(--glass-blur))); box-shadow: 0 14px 40px rgba(0, 6, 22, .08) }
+@property --panel-glow-x { syntax: "<percentage>"; inherits: false; initial-value: 24% }
+@property --panel-glow-y { syntax: "<percentage>"; inherits: false; initial-value: 10% }
+:where(.glowing-panel) { position: relative }
+.glass.glowing-panel { background-color: var(--composer-bg) }
+.app[data-effects="full"][data-dynamic-glow="true"] .glowing-panel {
+  --panel-glow-x: var(--panel-glow-target-x, 24%);
+  --panel-glow-y: var(--panel-glow-target-y, 10%);
+  background-image: radial-gradient(ellipse 56% 105% at var(--panel-glow-x) var(--panel-glow-y), var(--panel-glow), transparent);
+  background-origin: border-box;
+}
+.app[data-effects="full"][data-dynamic-glow="true"] .glowing-panel::after {
+  --panel-glow-x: inherit;
+  --panel-glow-y: inherit;
+  content: "";
+  position: absolute;
+  inset: -1px;
+  padding: 1px;
+  border-radius: inherit;
+  pointer-events: none;
+  background: radial-gradient(ellipse 31% 65% at var(--panel-glow-x) var(--panel-glow-y), color-mix(in srgb, var(--accent-hover) 34%, transparent), transparent);
+  mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  mask-composite: exclude;
+}
+@media (prefers-reduced-motion: no-preference) {
+  .app[data-effects="full"][data-dynamic-glow="true"] .glowing-panel {
+    transition: --panel-glow-x 10s ease-in-out, --panel-glow-y 10s ease-in-out;
+  }
+}
+.icon-button { display: inline-flex; align-items: center; justify-content: center; width: 34px; height: 34px; border-radius: 50%; color: var(--text-secondary); flex-shrink: 0; transition: background .16s, color .16s }
+.icon-button:hover { color: var(--text-primary); background: var(--hover) }
+.inline-error { color: var(--danger); font-size: 11px; line-height: 1.5; padding: 7px 12px; overflow-wrap: anywhere; user-select: text }
+.avatar { display: flex; align-items: center; justify-content: center; border-radius: 50%; color: #fff; font-weight: 550; flex-shrink: 0; background: #3c5a84; object-fit: cover }
+.avatar-0 { background: #ee4f79 }
+.avatar-1 { background: #21ba77 }
+.avatar-2 { background: #e9a722 }
+.avatar-3 { background: #3288ff }
+.avatar-4 { background: #9459ed }
+.avatar-5 { background: #e450c1 }
+.avatar-6 { background: #16b6c3 }
+.btn-accent { display: inline-flex; justify-content: center; align-items: center; gap: 9px; padding: 12px 22px; border-radius: 14px; color: var(--text-on-accent); background: var(--accent); font-size: 13px; font-weight: 550; transition: background .18s, transform .18s }
+.btn-accent:hover:not(:disabled) { background: var(--accent-hover) }
+.btn-accent:active:not(:disabled) { transform: scale(.98) }
+.btn-accent:disabled { opacity: .4 }
+@property --auth-angle { syntax: "<angle>"; initial-value: 35deg; inherits: false }
+.auth-card { position: relative; isolation: isolate; border-radius: 30px; background: linear-gradient(150deg, rgba(19,28,43,.72), rgba(8,13,22,.86)); box-shadow: 0 28px 80px rgba(0,0,0,.45), 0 4px 18px rgba(0,0,0,.2) }
+.auth-card::before, .auth-card::after { content: ""; position: absolute; inset: 0; border-radius: inherit; padding: 1px; background: conic-gradient(from var(--auth-angle), rgba(68,116,200,.08), rgba(68,116,200,.08) 18%, #357dff 30%, #9ccaff 35%, #726bdf 42%, rgba(68,116,200,.1) 55%, rgba(68,116,200,.08) 72%, #326cbd 86%, rgba(68,116,200,.08)); -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0); mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0); -webkit-mask-composite: xor; mask-composite: exclude; pointer-events: none; animation: auth-orbit 12s linear infinite }
+.auth-card::before { z-index: 1 }
+.auth-card::after { z-index: -1; padding: 2px; filter: blur(14px); opacity: .6 }
+.auth-card .btn-accent { width: 100%; min-height: 48px; justify-content: space-between; margin-top: 4px; padding: 13px 17px; border-radius: 15px; font-size: 14px; background: linear-gradient(110deg, #3989ff, #2865e3); box-shadow: 0 7px 24px rgba(32,100,230,.2); transition: opacity .18s, box-shadow .18s, transform .18s }
+.auth-card .btn-accent:hover:not(:disabled) { background: linear-gradient(110deg, #5299ff, #3478f4); box-shadow: 0 8px 30px rgba(32,100,230,.32) }
+.auth-card .btn-accent:disabled { box-shadow: none }
+.app[data-effects="reduced"] .auth-card::after { display: none }
+@keyframes auth-orbit { to { --auth-angle: 395deg } }
+.text-input { width: 100%; padding: 13px 15px; border: 1px solid var(--border); border-radius: 14px; font-size: 14px }
+.text-input:focus { border-color: rgba(81,141,255,.5); box-shadow: 0 0 0 3px rgba(81,141,255,.07) }
+input[type="range"] { appearance: none; -webkit-appearance: none; height: 22px; padding: 0; background: transparent; border: 0; border-radius: 12px; cursor: pointer }
+input[type="range"]::-webkit-slider-runnable-track { height: 5px; border-radius: 8px; background: linear-gradient(to right, var(--accent) var(--range-fill, 50%), rgba(140,164,198,.18) var(--range-fill, 50%)) }
+input[type="range"]::-webkit-slider-thumb { appearance: none; -webkit-appearance: none; width: 17px; height: 17px; margin-top: -6px; border: 0; border-radius: 50%; background: var(--accent-hover); box-shadow: 0 2px 7px rgba(0,0,0,.3); transition: box-shadow .15s, transform .15s }
+input[type="range"]:hover::-webkit-slider-thumb { transform: scale(1.1) }
+input[type="range"]:focus-visible::-webkit-slider-thumb { box-shadow: 0 0 0 4px var(--accent-soft), 0 2px 7px rgba(0,0,0,.3) }
+::-webkit-scrollbar { width: 4px; height: 4px }
+::-webkit-scrollbar-thumb { background: rgba(150,170,205,.15); border-radius: 8px }
+::-webkit-scrollbar-thumb:hover { background: rgba(150,170,205,.28) }
+::-webkit-scrollbar-track { background: transparent }
+.app[data-effects="reduced"] { --surface: rgba(12,23,41,.35); --menu-bg: #101e35; --composer-bg: #0e1a2b; --bubble-in: #192d4a; --bubble-out: #1d63ef; --glass-blur: 0px }
+.app[data-effects="reduced"] *, .app[data-effects="reduced"] *::before, .app[data-effects="reduced"] *::after { -webkit-backdrop-filter: none !important; backdrop-filter: none !important; animation: none !important; transition: none !important; scroll-behavior: auto !important }
+.app[data-effects="reduced"] .stale .chat-item { filter: none !important; opacity: .32 }
+.app[data-effects="reduced"] dialog::backdrop { -webkit-backdrop-filter: none !important; backdrop-filter: none !important }
+@keyframes appear { from { opacity: 0; transform: translateY(8px) } to { opacity: 1; transform: translateY(0) } }
