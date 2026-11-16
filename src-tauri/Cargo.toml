@@ -15,6 +15,7 @@ name = "parugram_lib"
 crate-type = ["staticlib", "cdylib", "rlib"]
 
 [build-dependencies]
+getrandom = "0.3"
 tauri-build = { version = "2", features = [] }
 tdlib-rs = { version = "1.4", features = ["download-tdlib"] }
 

@@ -5,36 +5,45 @@ mod models;
 mod state;
 mod td;
 
-use std::path::PathBuf;
+use std::path::Path;
 
 use state::AppState;
 use tauri::{Emitter, Manager};
 
-fn resolve_credentials(data_dir: &PathBuf) -> Result<models::Credentials, String> {
-    // 1) Переменные окружения TELEGRAM_API_ID / TELEGRAM_API_HASH
+fn bundled_credentials() -> Option<models::Credentials> {
+    let bytes = std::hint::black_box(include_bytes!(concat!(env!("OUT_DIR"), "/telegram-credentials")));
+    let (mask, encoded) = bytes.split_at(bytes.len() / 2);
+    let payload: Vec<_> = encoded.iter().zip(mask).map(|(byte, key)| byte ^ key).collect();
+    let (id, hash) = payload.split_first_chunk::<4>()?;
+    Some(models::Credentials {
+        api_id: i32::from_le_bytes(*id),
+        api_hash: String::from_utf8(hash.to_vec()).ok()?,
+    })
+}
+
+fn resolve_credentials(data_dir: &Path) -> Result<models::Credentials, String> {
     if let (Ok(id), Ok(hash)) = (
         std::env::var("TELEGRAM_API_ID"),
         std::env::var("TELEGRAM_API_HASH"),
     ) {
-        if let Ok(api_id) = id.trim().parse::<i32>() {
+        let hash = hash.trim();
+        if let Ok(api_id) = id.trim().parse::<i32>() && api_id > 0 && !hash.is_empty() {
             return Ok(models::Credentials {
                 api_id,
-                api_hash: hash.trim().to_string(),
+                api_hash: hash.to_string(),
             });
         }
     }
-    // 2) Файл credentials.json в app data dir: {"api_id": 12345, "api_hash": "..."}
     let path = data_dir.join("credentials.json");
-    if let Ok(text) = std::fs::read_to_string(&path) {
-        let creds: models::Credentials = serde_json::from_str(&text)
-            .map_err(|e| format!("credentials.json в {} повреждён: {e}", path.display()))?;
-        return Ok(creds);
-    }
-    Err(format!(
-        "Нет api_id/api_hash. Задай TELEGRAM_API_ID и TELEGRAM_API_HASH в окружении \
-         или положи {{\"api_id\": ..., \"api_hash\": \"...\"}} в {}",
-        path.display()
-    ))
+    let local = std::fs::read_to_string(&path)
+        .map_err(|error| format!("Не удалось прочитать {}: {error}", path.display()))
+        .and_then(|text| {
+            serde_json::from_str::<models::Credentials>(&text)
+                .ok()
+                .filter(|creds| creds.api_id > 0 && !creds.api_hash.trim().is_empty())
+                .ok_or_else(|| format!("Недействительные данные в {}", path.display()))
+        });
+    local.or_else(|error| bundled_credentials().ok_or(error))
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]

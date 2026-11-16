@@ -94,7 +94,7 @@
         <button type="button" class="login-method" disabled={changingMethod} onclick={() => switchLoginMethod(api.cancelQrLogin, "Не удалось вернуться к входу по номеру")}>{changingMethod ? "Переключаемся…" : "Войти по номеру телефона"}</button>
       </div>
     {:else if stage === "no_credentials"}
-      <div class="setup-error"><p>Добавьте API-ключи Telegram в <code>credentials.json</code>:</p><code>%APPDATA%\com.exie.parugram</code><p>Поля: <code>api_id</code> и <code>api_hash</code>. Затем перезапустите приложение.</p></div>
+      <div class="auth-error" role="alert">Не удалось запустить вход в Telegram.</div>
     {:else if store.startupError}<div class="auth-error" role="alert">{store.startupError}</div>
     {:else}<p class="auth-status">{stage === "loading" ? "Подключаемся к Telegram..." : stage === "logged_out" ? "Вы вышли из аккаунта. Перезапустите приложение." : "Этот способ входа пока недоступен"}</p>{/if}
   </section>
@@ -122,9 +122,6 @@
   .password-field .icon-button, .phone-field .icon-button { position: absolute; right: 9px; top: 9px }
   .privacy-note { margin: 23px 16px 0; text-align: center; font-size: 11px; line-height: 1.7; color: #7d90ae; text-wrap: pretty }
   .auth-error { color: var(--danger); font-size: 12px; line-height: 1.6; overflow-wrap: anywhere; user-select: text }
-  .setup-error { font-size: 12px; line-height: 1.8; color: var(--text-secondary); overflow-wrap: anywhere; user-select: text }
-  .setup-error p { margin: 0 0 12px }
-  .setup-error code { color: var(--text-primary); font-size: 11px }
   .auth-status { color: var(--text-secondary); font-size: 12px; line-height: 1.7; margin: 0 }
   @media (max-width: 480px) { .auth-screen { padding: 28px 10px } .auth-form { padding: 30px 24px; border-radius: 25px } .privacy-note { margin-inline: 6px } }
   @media (max-height: 600px) { .auth-screen { padding-block: 24px } .auth-form { padding-block: 28px } h1 { margin-bottom: 24px } .privacy-note { margin-top: 18px } }

@@ -16,7 +16,23 @@ defaults:
     shell: bash
 
 jobs:
+  telegram-credentials:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Check Telegram app credentials
+        env:
+          PARUGRAM_BUILD_API_ID: ${{ secrets.TELEGRAM_API_ID }}
+          PARUGRAM_BUILD_API_HASH: ${{ secrets.TELEGRAM_API_HASH }}
+        run: |
+          if [[ ! "$PARUGRAM_BUILD_API_ID" =~ ^[1-9][0-9]{0,9}$ ||
+                "$PARUGRAM_BUILD_API_ID" -gt 2147483647 ||
+                ! "$PARUGRAM_BUILD_API_HASH" =~ ^[[:xdigit:]]{32}$ ]]; then
+            echo "::error::Set valid TELEGRAM_API_ID and TELEGRAM_API_HASH repository secrets."
+            exit 1
+          fi
+
   linux-arm64:
+    needs: telegram-credentials
     runs-on: ubuntu-24.04-arm
     env:
       RUST_TARGET: aarch64-unknown-linux-gnu
@@ -40,9 +56,14 @@ jobs:
             librsvg2-dev libc++1-18
           rustup toolchain install stable --profile minimal --target "$RUST_TARGET"
 
+      - name: Install frontend dependencies
+        run: npm ci
+
       - name: Build Parugram
+        env:
+          PARUGRAM_BUILD_API_ID: ${{ secrets.TELEGRAM_API_ID }}
+          PARUGRAM_BUILD_API_HASH: ${{ secrets.TELEGRAM_API_HASH }}
         run: |
-          npm ci
           npm run tauri build -- --target "$RUST_TARGET" --no-bundle \
             --config '{"bundle":{"resources":null}}' -- --locked
 
@@ -78,6 +99,7 @@ jobs:
           if-no-files-found: error
 
   windows-x64:
+    needs: telegram-credentials
     runs-on: windows-2025
 
     steps:
@@ -90,11 +112,16 @@ jobs:
           node-version: '24'
           cache: npm
 
-      - name: Build the Windows installer
+      - name: Install build dependencies
         run: |
           rustup toolchain install stable --profile minimal
           npm ci
-          npm run tauri build -- --bundles nsis -- --locked
+
+      - name: Build the Windows installer
+        env:
+          PARUGRAM_BUILD_API_ID: ${{ secrets.TELEGRAM_API_ID }}
+          PARUGRAM_BUILD_API_HASH: ${{ secrets.TELEGRAM_API_HASH }}
+        run: npm run tauri build -- --bundles nsis -- --locked
 
       - name: Upload the Windows installer
         uses: actions/upload-artifact@v7

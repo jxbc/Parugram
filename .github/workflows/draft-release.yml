@@ -44,6 +44,13 @@ jobs:
             exit 1
           fi
 
+          configured=$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$BUILD_RUN_ID/jobs" \
+            --jq 'any(.jobs[]; .name == "telegram-credentials" and .conclusion == "success")')
+          if [[ "$configured" != true ]]; then
+            echo 'Select a build that passed the Telegram credentials check.' >&2
+            exit 1
+          fi
+
           tag_sha=$(gh api --paginate "repos/$GITHUB_REPOSITORY/tags?per_page=100" \
             | jq -r --arg tag "$RELEASE_TAG" '.[] | select(.name == $tag) | .commit.sha')
           if [[ -n "$tag_sha" && "$tag_sha" != "$build_sha" ]]; then
