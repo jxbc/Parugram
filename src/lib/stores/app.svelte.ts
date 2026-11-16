@@ -13,6 +13,7 @@ export { api }
 export const themePresets = [
   { id: "default", name: "Parugram", accent: "#347fff", background: "#090d15", surface: "#12161e", incoming: "#1b3151", wallpaper: "none" },
   { id: "next", name: "Next", accent: "#668fff", background: "#05070b", surface: "#10131c", incoming: "#1b2740", wallpaper: 'url("/themes/next.png")' },
+  { id: "telegram", name: "Telegram", accent: "#5faee7", background: "#0e1621", surface: "#17212b", incoming: "#182533", outgoing: "#2b5278", wallpaper: "none" },
   { id: "graphite", name: "Графит", accent: "#a1a9bb", background: "#101113", surface: "#1b1c20", incoming: "#303139", wallpaper: "none" },
   { id: "forest", name: "Лес", accent: "#34b99a", background: "#071310", surface: "#11231e", incoming: "#173e33", wallpaper: "radial-gradient(ellipse at 15% 20%, #154e40, transparent 65%), radial-gradient(ellipse at 90% 80%, #182c25, transparent 60%)" },
   { id: "dusk", name: "Сумерки", accent: "#a780ff", background: "#100b1a", surface: "#1b1429", incoming: "#35234e", wallpaper: "radial-gradient(ellipse at 80% 20%, #35234f, transparent 65%), radial-gradient(ellipse at 10% 85%, #36203b, transparent 60%)" },
@@ -558,28 +559,30 @@ export function customizationStyles(wallpaperUrl: string | null = null) {
   const settings = store.customization
   const preset = themePresets.find((theme) => theme.id === settings.theme) ?? themePresets[0]
   const custom = settings.theme === "custom"
+  const telegram = settings.theme === "telegram"
   const background = custom ? settings.background : preset.background
   const accent = custom ? settings.accent : preset.accent
   const light = lightColor(background)
-  const text = light ? "#152033" : "#f0f5ff"
+  const text = telegram ? "#f5f5f5" : light ? "#152033" : "#f0f5ff"
   const secondary = light ? "#526178" : "#97abc8"
   const surface = custom ? mixColor(background, light ? "#ffffff" : "#8797b2", .08) : preset.surface
   const menu = settings.theme === "default" ? "#0e131c" : surface
   const incoming = custom ? mixColor(background, accent, light ? .12 : .2) : preset.incoming
-  const outgoing = settings.theme === "default" ? "#1d63ef" : accent
-  const outgoingText = lightColor(outgoing) ? "#101b2e" : "#ffffff"
+  const outgoing = preset.outgoing ?? (settings.theme === "default" ? "#1d63ef" : accent)
+  const outgoingText = telegram ? "#e4ecf2" : lightColor(outgoing) ? "#101b2e" : "#ffffff"
   const opacity = store.effects === "reduced" ? 1 : settings.panelOpacity / 100
   const wallpaper = custom ? wallpaperUrl ? `url(${JSON.stringify(wallpaperUrl)})` : "none" : preset.wallpaper
   return Object.entries({
     "--bg-main": background, "--bg-sidebar": surface, "--bg-input": rgbaColor(light ? "#ffffff" : "#080b10", .5),
     "--surface": rgbaColor(surface, opacity), "--menu-bg": rgbaColor(menu, Math.min(1, opacity + .06)),
-    "--accent": accent, "--accent-hover": settings.theme === "next" ? "#8dcfff" : settings.theme === "default" ? "#69a5ff" : mixColor(accent, light ? "#000000" : "#ffffff", .22),
+    "--accent": accent, "--accent-hover": telegram ? "#90caff" : settings.theme === "next" ? "#8dcfff" : settings.theme === "default" ? "#69a5ff" : mixColor(accent, light ? "#000000" : "#ffffff", .22),
     "--accent-soft": settings.theme === "next" ? "rgba(36,107,170,.28)" : rgbaColor(accent, .24), "--hover": rgbaColor(accent, .1), "--border": rgbaColor(light ? "#253b5c" : "#7daeff", .14),
     "--folder-active": settings.theme === "next" ? "#173f66" : accent, "--folder-active-text": settings.theme === "next" ? "#a3d9ff" : lightColor(accent) ? "#101b2e" : "#ffffff",
     "--text-primary": text, "--text-secondary": settings.theme === "next" ? "#a0a5af" : secondary, "--text-tertiary": settings.theme === "next" ? "#737b88" : light ? "#66778d" : "#697f9f", "--text-on-accent": lightColor(accent) ? "#101b2e" : "#ffffff",
-    "--bubble-in": rgbaColor(incoming, store.effects === "reduced" ? 1 : settings.theme === "default" ? .6 : .72), "--bubble-out": rgbaColor(outgoing, store.effects === "reduced" ? 1 : settings.theme === "default" ? .82 : .88),
-    "--bubble-out-text": outgoingText, "--bubble-out-meta": rgbaColor(outgoingText, .76),
-    "--composer-bg": rgbaColor(mixColor(background, menu, .45), opacity),
+    "--bubble-in": telegram ? incoming : rgbaColor(incoming, store.effects === "reduced" ? 1 : settings.theme === "default" ? .6 : .72),
+    "--bubble-out": telegram ? outgoing : rgbaColor(outgoing, store.effects === "reduced" ? 1 : settings.theme === "default" ? .82 : .88),
+    "--bubble-out-text": outgoingText, "--bubble-out-meta": telegram ? "#7da8d3" : rgbaColor(outgoingText, .76),
+    "--composer-bg": telegram ? surface : rgbaColor(mixColor(background, menu, .45), opacity),
     "--panel-glow": rgbaColor(accent, .12),
     "--interface-font": JSON.stringify(settings.fontFamily), "--message-font-size": `${settings.fontSize}px`, "--bubble-radius": `${settings.bubbleRadius}px`,
     "--chat-wallpaper": wallpaper, "--wallpaper-opacity": String(settings.wallpaperOpacity / 100),

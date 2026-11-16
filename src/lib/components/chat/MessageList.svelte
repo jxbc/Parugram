@@ -559,6 +559,7 @@
     margin: 2px 0 14px;
   }
   .date-divider.current-day { visibility: hidden }
+  :global(.app[data-theme="telegram"]) .date-divider { background: #1e2c3a; color: #fff; border-color: transparent; box-shadow: none }
   .floating-date { position: relative; grid-area: 2 / 1; align-self: start; justify-self: center; z-index: 1; margin: 7px 0 0; pointer-events: none }
   .empty {
     margin: auto;

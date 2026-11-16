@@ -153,7 +153,7 @@
 
 <svelte:window bind:innerWidth={store.viewportWidth} onkeydown={navigationKey} />
 
-<div class="app" class:custom-titlebar={!!appWindow} class:compact data-effects={store.effects} data-theme={store.customization.theme} data-bubble-blur={store.customization.bubbleBlur && store.effects === "full"} data-dynamic-glow={store.customization.dynamicGlow} style={customizationStyles(store.customization.wallpaper ? convertFileSrc(store.customization.wallpaper) : null)} style:--panel-glow-target-x={glowTarget.x} style:--panel-glow-target-y={glowTarget.y}>
+<div class="app" class:custom-titlebar={!!appWindow} class:compact data-effects={store.effects} data-theme={store.customization.theme} data-bubble-blur={store.customization.bubbleBlur && store.effects === "full"} data-dynamic-glow={store.customization.theme !== "telegram" && store.customization.dynamicGlow} style={customizationStyles(store.customization.wallpaper ? convertFileSrc(store.customization.wallpaper) : null)} style:--panel-glow-target-x={glowTarget.x} style:--panel-glow-target-y={glowTarget.y}>
   {#if appWindow}
     <header class="titlebar" aria-label="Управление окном">
       <div class="titlebar-drag" data-tauri-drag-region></div>

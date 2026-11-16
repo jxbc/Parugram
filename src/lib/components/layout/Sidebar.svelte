@@ -353,7 +353,7 @@
   <div class="theme-grid" role="group" aria-label="Темы">
     {#each themePresets as theme (theme.id)}
       <button class="theme-choice" class:chosen={store.customization.theme === theme.id} aria-pressed={store.customization.theme === theme.id} onclick={() => updateCustomization({ theme: theme.id })}>
-        <span class="theme-swatch" style:background-color={theme.id === "custom" ? store.customization.background : theme.background} style:background-image={themeWallpaper(theme.id, theme.wallpaper)} style:--preview-in={theme.id === "custom" ? store.customization.accent : theme.incoming} style:--preview-out={theme.id === "custom" ? store.customization.accent : theme.accent}><i></i><i></i>{#if store.customization.theme === theme.id}<span class="theme-check"><Icon name="check" size={13} /></span>{/if}</span><span>{theme.name}</span>
+        <span class="theme-swatch" style:background-color={theme.id === "custom" ? store.customization.background : theme.background} style:background-image={themeWallpaper(theme.id, theme.wallpaper)} style:--preview-in={theme.id === "custom" ? store.customization.accent : theme.incoming} style:--preview-out={theme.id === "custom" ? store.customization.accent : theme.outgoing ?? theme.accent}><i></i><i></i>{#if store.customization.theme === theme.id}<span class="theme-check"><Icon name="check" size={13} /></span>{/if}</span><span>{theme.name}</span>
       </button>
     {/each}
   </div>
@@ -381,7 +381,9 @@
   <h3>Производительность</h3>
   <label class="settings-row"><span>Мягкие края фона</span><input class="switch" type="checkbox" role="switch" checked={store.customization.softEdges} onchange={(event) => updateCustomization({ softEdges: event.currentTarget.checked })} /></label>
   <label class="settings-row"><span>Анимации и блюр</span><input class="switch" type="checkbox" role="switch" checked={store.effects === "full"} onchange={(event) => setEffects(event.currentTarget.checked ? "full" : "reduced")} /></label>
-  <label class="settings-row"><span>Динамическое свечение</span><input class="switch" type="checkbox" role="switch" checked={store.customization.dynamicGlow} onchange={(event) => updateCustomization({ dynamicGlow: event.currentTarget.checked })} /></label>
+  {#if selectedTheme.id !== "telegram"}
+    <label class="settings-row"><span>Динамическое свечение</span><input class="switch" type="checkbox" role="switch" checked={store.customization.dynamicGlow} onchange={(event) => updateCustomization({ dynamicGlow: event.currentTarget.checked })} /></label>
+  {/if}
   <label class="settings-row"><span>Выключить блюр сообщений</span><input class="switch" type="checkbox" role="switch" checked={!store.customization.bubbleBlur} onchange={(event) => updateCustomization({ bubbleBlur: !event.currentTarget.checked })} /></label>
   <button class="reset-customization" onclick={resetCustomization}>Сбросить оформление</button>
   {:else if settingsCategory === "chats"}

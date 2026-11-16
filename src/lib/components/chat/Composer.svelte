@@ -503,6 +503,10 @@
   .send:hover:not(:disabled) { color: var(--text-primary); background: var(--hover) }
   .send:not(.send-mode):has(.microphone-icon) { color: var(--text-on-accent); background: var(--accent) }
   .send:not(.send-mode):has(.microphone-icon):hover:not(:disabled) { background: var(--accent-hover) }
+  :global(.app[data-theme="telegram"]) .row { --composer-icon: #6c7883 }
+  :global(.app[data-theme="telegram"]) .row-surface { border-color: transparent; box-shadow: none }
+  :global(.app[data-theme="telegram"]) .input::placeholder { color: #6d7883; opacity: 1 }
+  :global(.app[data-theme="telegram"]) .send:not(.send-mode, :hover):has(.microphone-icon) { color: var(--composer-icon); background: transparent }
   .send:disabled { opacity: .4; cursor: default }
   .send-icon, .microphone-icon { position: absolute; display: flex; transition: opacity .18s, transform .22s }
   .send-icon { opacity: 0; transform: translateY(6px) scale(.55) rotate(-25deg) }

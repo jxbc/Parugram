@@ -416,6 +416,8 @@
   .reply-preview strong { color: var(--accent-hover); font-size: 11px; line-height: 1.2; font-weight: 600; opacity: .8 }
   .reply-preview span { font-size: 11px; line-height: 1.2; opacity: .8; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; overflow: hidden; white-space: pre-wrap; overflow-wrap: anywhere }
   .reply-preview:disabled { cursor: default }
+  :global(.app[data-theme="telegram"]) .out .reply-preview { background: #325e87; color: var(--bubble-out-text) }
+  :global(.app[data-theme="telegram"]) .reply-preview :is(strong, span) { opacity: 1 }
   .reactions { display: flex; flex-wrap: wrap; gap: 4px; clear: both; padding-top: 6px }
   .reaction { display: inline-flex; align-items: center; gap: 4px; padding: 3px 7px; border-radius: 14px; background: rgba(6,14,27,.38); color: var(--text-primary); font-size: 11px; line-height: 21px }
   .reaction.chosen { background: #000; color: #deecff }
@@ -577,6 +579,9 @@
   .delivery {
     display: inline-flex;
   }
+  :global(.app[data-theme="telegram"]) .bubble:not(.media-bubble, .sticker-bubble, .round-bubble) > .meta { color: #6d7f8f }
+  :global(.app[data-theme="telegram"]) .out .bubble:not(.media-bubble, .sticker-bubble, .round-bubble) > .meta { color: var(--bubble-out-meta) }
+  :global(.app[data-theme="telegram"]) .delivery { color: #67b9f8 }
   .reactions + .meta { margin-top: 1px }
   .failed {
     color: var(--danger);

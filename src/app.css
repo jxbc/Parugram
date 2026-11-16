@@ -47,6 +47,8 @@ button, a, input, textarea { touch-action: manipulation }
 a { color: var(--accent-hover); text-decoration: none }
 svg { flex-shrink: 0 }
 .glass { background: var(--surface); border: 1px solid var(--border); -webkit-backdrop-filter: var(--glass-filter, blur(var(--glass-blur))); backdrop-filter: var(--glass-filter, blur(var(--glass-blur))); box-shadow: 0 14px 40px rgba(0, 6, 22, .08) }
+.app[data-theme="telegram"] { color: var(--text-primary); -webkit-font-smoothing: auto }
+.app[data-theme="telegram"] .glass { -webkit-backdrop-filter: none; backdrop-filter: none }
 @property --panel-glow-x { syntax: "<percentage>"; inherits: false; initial-value: 24% }
 @property --panel-glow-y { syntax: "<percentage>"; inherits: false; initial-value: 10% }
 :where(.glowing-panel) { position: relative }
