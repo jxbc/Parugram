@@ -596,6 +596,83 @@ test("carries reply targets into the send request and leaves other chat drafts u
   assert.equal(app.draftFor(11).text, "Other")
 })
 
+test("keeps the reply's history position by default and can jump to the latest after sending", async () => {
+  const app = await ready()
+  app.activateChat(10)
+  const original = message(40)
+  app.store.messages.set(10, [original])
+  app.store.historyLoaded.set(10, true)
+  app.store.historyAtLatest.set(10, false)
+  app.store.atBottom.set(10, false)
+  let sent = 50
+  app.api.sendText = async () => message(sent++, { is_outgoing: true })
+  const reply = async () => {
+    app.replyToMessage(original)
+    app.updateDraft(10, { text: "Answer" })
+    await app.sendDraft(10)
+  }
+  assert.equal(app.store.scrollOnReply, false)
+  await reply()
+  assert.equal(app.store.jumpTarget, null)
+  assert.deepEqual(app.store.messages.get(10).map((item) => item.id), [40])
+  assert.equal(app.draftFor(10).reply, null)
+
+  app.setScrollOnReply(true)
+  app.api.getHistory = async () => [original, message(50, { is_outgoing: true })]
+  await reply()
+  assert.equal(app.store.jumpTarget.messageId, 0)
+  assert.deepEqual(app.store.messages.get(10).map((item) => item.id), [40, 50, 51])
+  const restored = await ready({ preferences: { "parugram:scroll-on-reply": app.values.get("parugram:scroll-on-reply") } })
+  assert.equal(restored.store.scrollOnReply, true)
+})
+
+test("quick edit selects the latest eligible outgoing message and preserves a draft typed while checking permissions", async () => {
+  const app = await ready()
+  app.activateChat(10)
+  app.store.historyLoaded.set(10, true)
+  app.store.messages.set(10, [
+    message(30, { is_outgoing: true }),
+    message(31, { is_outgoing: true, is_deleted: true }),
+    message(32, { is_outgoing: true, sending_state: "pending" }),
+    message(33),
+  ])
+  app.api.messageActions = async (...args) => {
+    assert.deepEqual(args, [10, 30])
+    return { can_edit: true }
+  }
+  await app.editLastMessage(10, () => true)
+  assert.equal(app.draftFor(10).editing?.id, 30)
+  assert.equal(app.draftFor(10).text, "Message 30")
+  app.cancelEditing(10)
+  const permissions = deferred()
+  app.api.messageActions = () => permissions.promise
+  const opening = app.editLastMessage(10, () => true)
+  app.updateDraft(10, { text: "New draft" })
+  permissions.resolve({ can_edit: true })
+  await opening
+  assert.equal(app.draftFor(10).editing, null)
+  assert.equal(app.draftFor(10).text, "New draft")
+})
+
+test("quick edit finds the latest own message while the chat is positioned in older history", async () => {
+  const app = await ready()
+  app.activateChat(10)
+  app.store.historyLoaded.set(10, true)
+  app.store.historyAtLatest.set(10, false)
+  app.store.messages.set(10, [message(30, { is_outgoing: true })])
+  app.api.searchMessages = async (...args) => {
+    assert.deepEqual(args, [10, "", 0, true, undefined])
+    return { messages: [message(80, { is_outgoing: true })], next_from_message_id: 0 }
+  }
+  app.api.messageActions = async () => ({ can_edit: false })
+  await app.editLastMessage(10, () => true)
+  assert.equal(app.draftFor(10).editing, null)
+  app.api.messageActions = async () => ({ can_edit: true })
+  await app.editLastMessage(10, () => true)
+  assert.equal(app.draftFor(10).editing?.id, 80)
+  assert.deepEqual(app.store.messages.get(10).map((item) => item.id), [30])
+})
+
 test("restores the original attachment draft after cancelling or saving an edit", async () => {
   const app = await ready()
   app.store.activeChatId = 10

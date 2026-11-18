@@ -56,6 +56,7 @@ export const store = $state({
   privacyMode: false,
   saveDeleted: false,
   skipRead: false,
+  scrollOnReply: false,
   chatPrivacy: chatPrivacyDefaults(false),
   notifications: { ...defaultNotifications },
   recentStickerLimit: 75,
@@ -502,6 +503,7 @@ function receivesChatUpdates(chatId: number) {
 }
 
 const customizationKey = "parugram:customization:v1"
+const scrollOnReplyKey = "parugram:scroll-on-reply"
 const defaultCustomization = { ...store.customization }
 
 export function normalizeCustomization(value: unknown): typeof store.customization {
@@ -823,6 +825,7 @@ export async function initStore(): Promise<void> {
   initialized = true
   try {
     store.privacyMode = localStorage.getItem("parugram:privacy") === "true"
+    store.scrollOnReply = localStorage.getItem(scrollOnReplyKey) === "true"
     const recentLimit = Number(localStorage.getItem("parugram:recent-sticker-limit"))
     store.recentStickerLimit = [25, 50, 75, 100].includes(recentLimit) ? recentLimit : 75
     const appearance = localStorage.getItem("parugram:effects")
@@ -999,6 +1002,12 @@ export function setRecentStickerLimit(limit: number) {
   catch { return }
 }
 
+export function setScrollOnReply(enabled: boolean) {
+  store.scrollOnReply = enabled
+  try { localStorage.setItem(scrollOnReplyKey, String(enabled)) }
+  catch {}
+}
+
 export function visibleRecentStickers() {
   return (store.stickerCatalog?.recent ?? []).slice(0, store.recentStickerLimit)
 }
@@ -1057,7 +1066,7 @@ export async function sendSticker(chatId: number, sticker: StickerData): Promise
   try {
     const message = target.threadId ? await api.sendSticker(target.chatId, sticker, reply?.id ?? null, target.threadId) : await api.sendSticker(target.chatId, sticker, reply?.id ?? null)
     if (currentSession !== session) return false
-    if (store.historyAtLatest.get(chatId) === false) await returnToLatest(chatId)
+    await scrollAfterSend(chatId, !!reply)
     if (currentSession !== session) return false
     appendMessage(message)
     if (reply && draftFor(chatId).reply?.id === reply.id) updateDraft(chatId, { reply: null })
@@ -1567,6 +1576,13 @@ export async function returnToLatest(chatId: number) {
   store.jumpTarget = { chatId, messageId: 0, token }
 }
 
+function scrollAfterSend(chatId: number, isReply: boolean) {
+  const olderHistory = store.historyAtLatest.get(chatId) === false
+  if (isReply ? store.scrollOnReply && isConversationVisible(chatId) && (olderHistory || store.atBottom.get(chatId) === false) : olderHistory) {
+    return returnToLatest(chatId).catch(() => {})
+  }
+}
+
 export function updateMessageReactions(payload: MessageReactionsPayload) {
   if (!acceptsMessages() || !receivesChatUpdates(payload.chat_id)) return
   const key = messageKey(payload.chat_id, payload.message_id)
@@ -1822,6 +1838,7 @@ function storedDrafts(): Record<string, string> {
 function syncWindowPreferences(event: StorageEvent) {
   if (event.key === customizationKey) restoreCustomization()
   if (event.key === "parugram:effects") store.effects = event.newValue === "reduced" ? "reduced" : "full"
+  if (event.key === scrollOnReplyKey) store.scrollOnReply = event.newValue === "true"
   if (event.key !== draftsStorageKey || !store.drafts.size) return
   const saved = storedDrafts()
   for (const [key, draft] of store.drafts) {
@@ -1913,8 +1930,42 @@ export function replyToMessage(message: MsgData, preferredKey?: number) {
   store.composeFocusChatId = key
 }
 
-export function editMessage(message: MsgData) {
-  const key = keyForMessage(message)
+export function canEditMessageContent(message: MsgData) {
+  return ["Text", "Photo", "Video", "File", "Voice"].includes(message.content.kind)
+}
+
+export async function editLastMessage(chatId: number, hasFocus: () => boolean) {
+  const currentSession = session
+  const currentDraft = store.drafts.get(chatId)
+  const active = () => currentSession === session && store.chatsReady && isConversationVisible(chatId)
+    && !store.sendingChats.get(chatId) && store.drafts.get(chatId) === currentDraft && hasFocus()
+  const draft = draftFor(chatId)
+  if (!active() || draft.text || draft.attachment || draft.reply || draft.editing) return
+
+  const target = conversationTarget(chatId)
+  const eligible = (message: MsgData) => message.is_outgoing && message.sending_state === "sent"
+    && !message.is_deleted && !deleted.has(messageKey(message.chat_id, message.id)) && canEditMessageContent(message)
+  let message = store.historyLoaded.get(chatId) && store.historyAtLatest.get(chatId) !== false
+    ? store.messages.get(chatId)?.findLast(eligible) : undefined
+  try {
+    let cursor = 0
+    while (!message && active()) {
+      const page = await requestMessages(() => api.searchMessages(target.chatId, "", cursor, true, target.threadId), true, active)
+      if (!active()) return
+      message = page.messages.find(eligible)
+      if (!page.next_from_message_id || page.next_from_message_id === cursor) break
+      cursor = page.next_from_message_id
+    }
+    if (!message) return
+    const id = message.id
+    const permissions = await requestMessages(() => api.messageActions(target.chatId, id), true, active)
+    const current = normalizeMessage(message)
+    if (permissions.can_edit && active() && current && eligible(current)) editMessage(current, chatId)
+  } catch {}
+}
+
+export function editMessage(message: MsgData, preferredKey?: number) {
+  const key = keyForMessage(message, preferredKey)
   if (!store.chatsReady || !isConversationVisible(key)) return
   if (!draftFor(key).editing) editBackups.set(key, draftFor(key))
   updateDraft(key, { text: messageText(message), entities: "entities" in message.content.data ? message.content.data.entities : [], editing: message, reply: null, attachment: null, videoInfo: null })
@@ -1955,7 +2006,7 @@ export async function sendDraft(chatId: number): Promise<void> {
       : await api.sendText(target.chatId, text, draft.reply?.id ?? null, ...sendArgs)
     if (currentSession !== session) return
     if (draft.editing) updateMessageContent({ chat_id: target.chatId, message_id: message.id, content: message.content })
-    if (!draft.editing && store.historyAtLatest.get(chatId) === false) await returnToLatest(chatId)
+    if (!draft.editing) await scrollAfterSend(chatId, !!draft.reply)
     if (currentSession !== session) return
     appendMessage(message)
     const latest = draftFor(chatId)

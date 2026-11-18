@@ -2,7 +2,7 @@
   import Icon from "$lib/components/Icon.svelte"
   import { tick } from "svelte"
   import MessageBubble from "$lib/components/chat/MessageBubble.svelte"
-  import { store, api, appendMessage, messageText, replyToMessage, editMessage, focusMessage, closeMessageOverlays, openProfile, openConversation, deleteMessages, canSplitView, openSplitChat, visibleChat } from "$lib/stores/app.svelte"
+  import { store, api, appendMessage, messageText, replyToMessage, editMessage, canEditMessageContent, focusMessage, closeMessageOverlays, openProfile, openConversation, deleteMessages, canSplitView, openSplitChat, visibleChat } from "$lib/stores/app.svelte"
   import type { ChatSummary, ContextTarget, MessageActions, MsgData, ReactionData, SenderData, UserPayload } from "$lib/api/td"
   import Avatar from "$lib/components/Avatar.svelte"
   import ReactionIcon from "$lib/components/ReactionIcon.svelte"
@@ -462,7 +462,7 @@
     <button role="menuitem" onclick={() => focusMessage(current)}><Icon name="frame" size={17} strokeWidth={1.5} /><span>Выделить сообщение</span></button>
   {/if}
   <button class:compact role={compact ? undefined : "menuitem"} onclick={() => openProfile({ kind: current.sender.kind, id: current.sender.id })}><Icon name="user" size={17} strokeWidth={1.5} /><span>Профиль автора</span></button>
-  {#if permissions?.can_edit && visibleChat(current.chat_id) && ["Text", "Photo", "Video", "File", "Voice"].includes(current.content.kind)}
+  {#if permissions?.can_edit && visibleChat(current.chat_id) && canEditMessageContent(current)}
     <button class:compact role={compact ? undefined : "menuitem"} onclick={() => editMessage(current)}><Icon name="edit-pencil" size={17} strokeWidth={1.5} /><span>Редактировать</span></button>
   {/if}
   {#if permissions?.can_delete_for_self || permissions?.can_delete_for_all}

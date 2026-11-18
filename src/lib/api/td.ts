@@ -349,7 +349,8 @@ export const api = {
   stickerCatalog: () => invoke<StickerCatalog>("sticker_catalog"),
   stickerPack: (setId: string) => invoke<StickerData[]>("sticker_pack", { setId }),
   sendSticker: (chatId: number, sticker: StickerData, replyToMessageId: number | null = null, threadId?: number) => invoke<MsgData>("send_sticker", { chatId, sticker, replyToMessageId, threadId }),
-  searchMessages: (chatId: number, query: string, fromMessageId = 0) => invoke<ProfileMedia>("search_messages", { chatId, query, fromMessageId }),
+  searchMessages: (chatId: number, query: string, fromMessageId = 0, own?: boolean, threadId?: number) =>
+    invoke<ProfileMedia>("search_messages", { chatId, query, fromMessageId, own, threadId }),
   installWallpaper: (path: string) => invoke<string>("install_wallpaper", { path }),
   setSkipRead: (enabled: boolean) => invoke<boolean>("set_skip_read", { enabled }),
   setChatPrivacy: (preferences: ChatPrivacy) => invoke<ChatPrivacy>("set_chat_privacy", { preferences }),

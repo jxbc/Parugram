@@ -3,7 +3,7 @@
   const sources = import.meta.glob<string>([
     "/node_modules/iconoir/icons/regular/{archive,arrow-right,arrow-up-right,badge-check,bell,bell-off,bookmark,chat-bubble,check,clock,collapse,copy,double-check,download,edit-pencil,emoji,expand,eye,eye-closed,frame,log-out,mail,media-image,microphone,minus,more-horiz,music-note,repeat,repeat-once,shuffle,skip-next,skip-prev,sound-high,sound-off,nav-arrow-down,nav-arrow-left,nav-arrow-right,page,pause,pin,play,plus,reply,search,settings,shield-check,sparks,square,trash,user,view-columns-2,warning-circle,xmark}.svg",
     "/node_modules/iconoir/icons/solid/send.svg",
-    "/node_modules/iconoir/icons/regular/{folder,group,info-circle}.svg",
+    "/node_modules/iconoir/icons/regular/{folder,group,help-circle,info-circle}.svg",
   ], { eager: true, query: "?raw", import: "default" })
   const inline: Record<string, string> = {
     "ph:sticker": '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" fill="currentColor"><path d="M168,32H88A56.06,56.06,0,0,0,32,88v80a56.06,56.06,0,0,0,56,56h48a8.07,8.07,0,0,0,2.53-.41c26.23-8.75,76.31-58.83,85.06-85.06A8.07,8.07,0,0,0,224,136V88A56.06,56.06,0,0,0,168,32ZM48,168V88A40,40,0,0,1,88,48h80a40,40,0,0,1,40,40v40H184a56.06,56.06,0,0,0-56,56v24H88A40,40,0,0,1,48,168Zm96,35.14V184a40,40,0,0,1,40-40h19.14C191,163.5,163.5,191,144,203.14Z"/></svg>',

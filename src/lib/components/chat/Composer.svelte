@@ -10,7 +10,7 @@
   import { open } from "@tauri-apps/plugin-dialog"
   import { convertFileSrc } from "@tauri-apps/api/core"
   import encoderPath from "opus-recorder/dist/encoderWorker.min.js?url"
-  import { store, api, activeChat, draftFor, updateDraft, stageAttachment, removeAttachment, sendDraft, messageSender, cancelEditing, insertMention, conversationTarget, openStickerPanel, openMediaItems } from "$lib/stores/app.svelte"
+  import { store, api, activeChat, draftFor, updateDraft, stageAttachment, removeAttachment, sendDraft, messageSender, editLastMessage, cancelEditing, insertMention, conversationTarget, openStickerPanel, openMediaItems } from "$lib/stores/app.svelte"
   import { formatFileSize, formatDuration, messagePreview, mentionQuery, releaseMedia } from "$lib/utils"
 
   let { chatId }: { chatId: number } = $props()
@@ -48,6 +48,7 @@
   let timer: ReturnType<typeof setInterval> | undefined
   let discarded = false
   let disposed = false
+  let quickEditPending = false
   let caret = $state(0)
   let mentionOptions = $state<UserPayload[]>([])
   let mentionIndex = $state(0)
@@ -206,7 +207,14 @@
         return
       }
     }
-    if (event.key === "Enter" && !event.shiftKey) {
+    if (event.key === "ArrowUp" && !event.repeat && !event.altKey && !event.ctrlKey && !event.metaKey && !event.shiftKey
+      && !draft.text && !draft.attachment && !reference && !sending && !choosing && !recording && !recordingStarting) {
+      event.preventDefault()
+      if (quickEditPending) return
+      quickEditPending = true
+      void editLastMessage(chatId, () => !disposed && document.activeElement === input && !choosing && !recording && !recordingStarting)
+        .finally(() => { quickEditPending = false })
+    } else if (event.key === "Enter" && !event.shiftKey) {
       event.preventDefault()
       if (!choosing && !recording && !recordingStarting) void sendDraft(chatId)
     }

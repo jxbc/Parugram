@@ -7,7 +7,7 @@
   import { convertFileSrc } from "@tauri-apps/api/core"
   import Avatar from "$lib/components/Avatar.svelte"
   import SecretInput from "$lib/components/auth/SecretInput.svelte"
-  import { store, api, loadMoreChats, selectFolder, openProfile, openPrivateChat, setEffects, openChatMenu, activateChat, setPrivacyMode, applyAppLockStatus, setSaveDeleted, setSkipRead, setChatPrivacy, setNotificationPreference, themePresets, interfaceFontGroups, updateCustomization, resetCustomization, setRecentStickerLimit, canSplitView, openSplitChat, compactChats, compactView, messageSender, chatMuted } from "$lib/stores/app.svelte"
+  import { store, api, loadMoreChats, selectFolder, openProfile, openPrivateChat, setEffects, openChatMenu, activateChat, setPrivacyMode, applyAppLockStatus, setSaveDeleted, setSkipRead, setChatPrivacy, setNotificationPreference, themePresets, interfaceFontGroups, updateCustomization, resetCustomization, setRecentStickerLimit, setScrollOnReply, canSplitView, openSplitChat, compactChats, compactView, messageSender, chatMuted } from "$lib/stores/app.svelte"
   import type { ChatPrivacy, ChatSummary, DownloadSettings, NotificationPreferences } from "$lib/api/td"
   import { formatTime, messagePreview, horizontalWheel, rangeSlider } from "$lib/utils"
 
@@ -410,6 +410,15 @@
   <label class="settings-row"><span>Выключить блюр сообщений</span><input class="switch" type="checkbox" role="switch" checked={!store.customization.bubbleBlur} onchange={(event) => updateCustomization({ bubbleBlur: !event.currentTarget.checked })} /></label>
   <button class="reset-customization" onclick={resetCustomization}>Сбросить оформление</button>
   {:else if settingsCategory === "chats"}
+  <h3>Поведение интерфейса</h3>
+  <div class="settings-row">
+    <div class="setting-help">
+      <label for="scroll-on-reply">Скроллить вниз при ответе на сообщение</label>
+      <button class="help-button" type="button" aria-label="Подробнее о прокрутке при ответе" aria-describedby="scroll-on-reply-help"><Icon name="help-circle" size={16} /></button>
+      <span id="scroll-on-reply-help" class="settings-tooltip" role="tooltip">Если вы ответите на любое сообщение, которое находится выше по истории, то вы будете перемещены сразу к последним сообщениям. Это стандартное поведение Telegram. Не включайте, если хотите читать историю сообщений и отвечать на них последовательно</span>
+    </div>
+    <input id="scroll-on-reply" class="switch" type="checkbox" role="switch" checked={store.scrollOnReply} onchange={(event) => setScrollOnReply(event.currentTarget.checked)} />
+  </div>
   <h3>Анонимность</h3>
   {#each privacyOptions as { key, label } (key)}
     <label class="settings-row"><span>{label}</span><input class="switch" type="checkbox" role="switch" checked={key === "read" ? store.skipRead : store.chatPrivacy[key]} disabled={privacyBusy} onchange={(event) => void changeChatPrivacy(key, event.currentTarget)} /></label>
@@ -522,6 +531,12 @@
   .settings-account strong { font-size: 16px; font-weight: 500 }
   .settings-account span span { font-size: 12px; color: var(--text-secondary) }
   .settings-row { display: flex; align-items: center; justify-content: space-between; gap: 20px; padding: 9px 0; font-size: 14px; cursor: pointer }
+  .setting-help { position: relative; display: flex; align-items: center; gap: 6px; min-width: 0 }
+  .setting-help label { cursor: pointer }
+  .help-button { display: grid; place-items: center; flex-shrink: 0; padding: 3px; border-radius: 50%; color: var(--text-secondary) }
+  .help-button:hover, .help-button:focus-visible { color: var(--text-primary) }
+  .settings-tooltip { display: none; position: absolute; z-index: 2; top: calc(100% + 6px); inset-inline-start: 0; width: min(285px, calc(100vw - 84px)); padding: 9px 11px; border: 1px solid var(--border); border-radius: 9px; background: var(--bg-sidebar); color: var(--text-primary); font-size: 12px; line-height: 1.5; pointer-events: none }
+  .help-button:is(:hover, :focus-visible) + .settings-tooltip { display: block }
   .download-directory { padding-bottom: 8px; color: var(--text-secondary); font-size: 12px; overflow-wrap: anywhere; user-select: text }
   .notification-child { padding-inline-start: 14px; font-size: 13px }
   .notification-disabled { color: var(--text-secondary); cursor: default }

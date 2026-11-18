@@ -419,11 +419,31 @@ pub async fn pinned_messages(app: AppHandle, state: State<'_, AppState>, chat_id
 }
 
 #[tauri::command]
-pub async fn search_messages(app: AppHandle, state: State<'_, AppState>, chat_id: i64, query: String, from_message_id: i64) -> Result<ProfileMedia, String> {
+pub async fn search_messages(app: AppHandle, state: State<'_, AppState>, chat_id: i64, query: String, from_message_id: i64, own: Option<bool>, thread_id: Option<i64>) -> Result<ProfileMedia, String> {
     let cid = ready_client_id(&state)?;
     let query = query.trim().chars().take(512).collect::<String>();
-    if query.is_empty() { return Ok(ProfileMedia { messages: vec![], next_from_message_id: 0, total_count: 0 }); }
-    let tdlib_rs::enums::FoundChatMessages::FoundChatMessages(found) = tdlib_rs::functions::search_chat_messages(chat_id, None, query, None, from_message_id, 0, 30, None, cid).await.map_err(tderr)?;
+    let sender = if own == Some(true) {
+        let user_id = state.user.lock().unwrap().as_ref().ok_or("Войдите в аккаунт")?.id;
+        Some(tdlib_rs::enums::MessageSender::User(tdlib_rs::types::MessageSenderUser { user_id }))
+    } else {
+        None
+    };
+    if query.is_empty() && sender.is_none() { return Ok(ProfileMedia { messages: vec![], next_from_message_id: 0, total_count: 0 }); }
+    let search = tdlib_rs::functions::search_chat_messages(chat_id, message_topic(thread_id), query, sender, from_message_id, 0, 30, None, cid).await;
+    let tdlib_rs::enums::FoundChatMessages::FoundChatMessages(found) = match search {
+        Ok(found) => found,
+        Err(error) if own == Some(true) && thread_id.is_none() => {
+            let tdlib_rs::enums::Chat::Chat(chat) = tdlib_rs::functions::get_chat(chat_id, cid).await.map_err(tderr)?;
+            if !matches!(chat.r#type, tdlib_rs::enums::ChatType::Secret(_)) {
+                return Err(tderr(error));
+            }
+            let mut messages = get_history(app, state, chat_id, from_message_id, 30).await?;
+            let next_from_message_id = messages.first().map_or(0, |message| message.id);
+            messages.reverse();
+            return Ok(ProfileMedia { total_count: messages.len() as i32, messages, next_from_message_id });
+        }
+        Err(error) => return Err(tderr(error)),
+    };
     worker::ensure_senders(&app, &found.messages.iter().collect::<Vec<_>>()).await;
     Ok(ProfileMedia { messages: found.messages.iter().map(|message| worker::message_of(&app, message)).collect(), next_from_message_id: found.next_from_message_id, total_count: found.total_count })
 }
